@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type React from "react";
 import { Roboto_Condensed } from "next/font/google";
+import { CartProvider } from "@/context/CartContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import "./globals.css";
@@ -26,17 +27,17 @@ export default function RootLayout({
       <body
         className={`${robotoCondensed.variable} font-sans antialiased bg-white text-zinc-900 overflow-x-hidden`}
       >
-        <div className="flex min-h-screen flex-col">
-          <header className="bg-white">
-            <div className="mx-auto w-full max-w-6xl px-6 py-4 lg:px-10 lg:py-5">
-              <Header />
-            </div>
-          </header>
-
-
-          <main className="flex-1">{children}</main>
-          <Footer />
-        </div>
+        <CartProvider>
+          <div className="flex min-h-screen flex-col">
+            <header className="bg-white">
+              <div className="mx-auto w-full max-w-6xl px-6 py-4 lg:px-10 lg:py-5">
+                <Header />
+              </div>
+            </header>
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </div>
+        </CartProvider>
       </body>
     </html>
   );

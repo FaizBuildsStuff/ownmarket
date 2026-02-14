@@ -12,6 +12,7 @@ import {
   LogOut,
   UserPlus,
   LayoutDashboard,
+  ShoppingCart,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -23,6 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useCart } from "@/context/CartContext";
 
 type UserRole = "admin" | "buyer" | "seller" | null;
 
@@ -41,6 +43,7 @@ const LOCAL_KEY = "ownmarket-auth";
 
 export function Header() {
   const router = useRouter();
+  const { itemCount } = useCart();
   const [userId, setUserId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -248,6 +251,18 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <Link
+            href="/cart"
+            className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-600 transition hover:border-zinc-300 hover:text-zinc-900"
+            aria-label="Cart"
+          >
+            <ShoppingCart className="h-4 w-4" />
+            {itemCount > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-indigo-600 px-1 text-[10px] font-semibold text-white">
+                {itemCount > 99 ? "99+" : itemCount}
+              </span>
+            )}
+          </Link>
           {!userId ? (
             <>
               <Button

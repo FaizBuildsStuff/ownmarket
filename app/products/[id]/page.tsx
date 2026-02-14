@@ -12,7 +12,10 @@ import {
   UserCircle2,
   CalendarDays,
   ShoppingBag,
+  ShoppingCart,
 } from "lucide-react";
+import { useCart } from "@/context/CartContext";
+import { Button } from "@/components/ui/button";
 
 type ProductDetail = {
   id: string;
@@ -28,6 +31,7 @@ type ProductDetail = {
 export default function ProductDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const { addItem, items } = useCart();
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [sellerProfile, setSellerProfile] = useState<{
@@ -189,6 +193,21 @@ export default function ProductDetailPage() {
           <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
             {product.quantity > 0 && (
               <>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="rounded-full border-zinc-200"
+                  onClick={() => addItem(product.id, 1, product.quantity)}
+                >
+                  <ShoppingCart className="mr-2 h-4 w-4" />
+                  Add to cart
+                  {(items[product.id] ?? 0) > 0 && (
+                    <span className="ml-1.5 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700">
+                      {(items[product.id] ?? 0)} in cart
+                    </span>
+                  )}
+                </Button>
                 {product.discord_channel_link && (
                   <Link
                     href={product.discord_channel_link}

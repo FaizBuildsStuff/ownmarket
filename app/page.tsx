@@ -8,6 +8,10 @@ import gsap from "gsap";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import IntegrationsSection from "@/components/integrations-3";
+import FAQsTwo from "@/components/faqs-2";
+import { useCart } from "@/context/CartContext";
+import { Button } from "@/components/ui/button";
+import { ShoppingCart } from "lucide-react";
 
 const heroVariants = {
   hidden: { opacity: 0, y: 40 },
@@ -72,6 +76,7 @@ export default function Home() {
   const backdropRef = useRef<HTMLDivElement | null>(null);
   const cursorX = useMotionValue(0);
   const cursorY = useMotionValue(0);
+  const { addItem, items } = useCart();
   const [products, setProducts] = useState<ProductCard[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
 
@@ -416,11 +421,11 @@ export default function Home() {
           ) : (
             <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
               {products.map((p) => (
-                <Link
+                <div
                   key={p.id}
-                  href={`/products/${p.id}`}
                   className="group relative overflow-hidden rounded-3xl border border-zinc-200/60 bg-white/70 p-6 backdrop-blur-xl transition duration-500 hover:-translate-y-2 hover:border-indigo-300/60 hover:shadow-[0_30px_80px_rgba(15,23,42,0.12)]"
                 >
+                <Link href={`/products/${p.id}`} className="block">
                   {/* Glow Border Effect */}
                   <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition duration-500 pointer-events-none">
                     <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-indigo-500/10 via-sky-400/10 to-emerald-400/10 blur-2xl" />
@@ -468,12 +473,32 @@ export default function Home() {
                     </div>
                   </div>
                 </Link>
+                {p.quantity > 0 && (
+                  <div className="mt-3 pt-3 border-t border-zinc-200/60">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="w-full rounded-full border-zinc-200 text-xs"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        addItem(p.id, 1, p.quantity);
+                      }}
+                    >
+                      <ShoppingCart className="mr-2 h-3.5 w-3.5" />
+                      Add to cart
+                      {(items[p.id] ?? 0) > 0 && ` (${items[p.id]})`}
+                    </Button>
+                  </div>
+                )}
+                </div>
               ))}
             </div>
           )}
         </section>
 
         <IntegrationsSection />
+        <FAQsTwo />
       </main>
     </div>
   );
