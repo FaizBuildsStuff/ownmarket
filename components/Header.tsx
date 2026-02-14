@@ -210,15 +210,17 @@ export function Header() {
         initial="hidden"
         animate="visible"
         variants={headerVariants}
-        className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-zinc-200 bg-white/80 px-3 py-2.5 text-sm text-zinc-700 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur sm:mb-6 sm:px-4 sm:py-3 md:mb-10 md:px-5"
+        className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-700 shadow-[0_18px_45px_rgba(15,23,42,0.08)] sm:mb-6 sm:px-4 sm:py-3 md:mb-10 md:px-5"
       >
         <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
-          <div className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-xs font-semibold text-zinc-50 shadow-sm sm:rounded-2xl">
-            OM
-          </div>
+          <img
+            src="/logo.png"
+            alt="OwnMarket"
+            className="h-8 w-8 shrink-0 rounded-xl object-contain sm:h-9 sm:w-9 sm:rounded-2xl"
+          />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-              <p className="truncate text-sm font-semibold text-zinc-900">OwnMarket</p>
+              <span className="truncate text-sm font-semibold text-zinc-900">OwnMarket</span>
               <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 sm:px-2 sm:text-[11px]">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 Live
