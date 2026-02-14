@@ -13,6 +13,9 @@ import {
   Trash2,
   MessageCircleMore,
   ExternalLink,
+  Award,
+  Ban,
+  Clock,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -34,6 +37,18 @@ type ProductRow = {
   quantity: number;
   description: string | null;
   discord_channel_link: string | null;
+  badge?: string | null;
+  seller_id?: string;
+};
+
+type ProfileRow = {
+  id: string;
+  username: string | null;
+  discord_username: string | null;
+  role: string;
+  badge: string | null;
+  banned: boolean;
+  banned_until: string | null;
 };
 
 export default function DashboardPage() {
@@ -62,6 +77,19 @@ export default function DashboardPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: "", price: "", quantity: "1", description: "", discordChannel: "" });
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Admin: all products and users
+  const [allProducts, setAllProducts] = useState<ProductRow[]>([]);
+  const [allUsers, setAllUsers] = useState<ProfileRow[]>([]);
+  const [adminProductsLoading, setAdminProductsLoading] = useState(false);
+  const [adminUsersLoading, setAdminUsersLoading] = useState(false);
+  const [adminError, setAdminError] = useState<string | null>(null);
+  // Badge dialog: for product or user
+  const [badgeTarget, setBadgeTarget] = useState<{ type: "product"; id: string } | { type: "user"; id: string } | null>(null);
+  const [badgeInput, setBadgeInput] = useState("");
+  const [timeoutTarget, setTimeoutTarget] = useState<{ userId: string } | null>(null);
+  const [timeoutDays, setTimeoutDays] = useState("1");
+  const [banConfirmUserId, setBanConfirmUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -97,7 +125,7 @@ export default function DashboardPage() {
     setProductsLoading(true);
     const { data } = await supabase
       .from("products")
-      .select("id, name, price, quantity, description, discord_channel_link")
+      .select("id, name, price, quantity, description, discord_channel_link, badge")
       .eq("seller_id", userId)
       .order("created_at", { ascending: false });
 
@@ -105,9 +133,48 @@ export default function DashboardPage() {
     setProductsLoading(false);
   };
 
+  const fetchAllProducts = async () => {
+    setAdminProductsLoading(true);
+    setAdminError(null);
+    const { data, error } = await supabase
+      .from("products")
+      .select("id, name, price, quantity, description, discord_channel_link, badge, seller_id")
+      .order("created_at", { ascending: false });
+    if (error) {
+      setAdminError(error.message);
+      setAdminProductsLoading(false);
+      return;
+    }
+    setAllProducts((data as ProductRow[]) ?? []);
+    setAdminProductsLoading(false);
+  };
+
+  const fetchAllUsers = async () => {
+    setAdminUsersLoading(true);
+    setAdminError(null);
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, username, discord_username, role, badge, banned, banned_until")
+      .order("created_at", { ascending: false });
+    if (error) {
+      setAdminError(error.message);
+      setAdminUsersLoading(false);
+      return;
+    }
+    setAllUsers((data as ProfileRow[]) ?? []);
+    setAdminUsersLoading(false);
+  };
+
   useEffect(() => {
     void fetchProducts();
   }, [userId, role]);
+
+  useEffect(() => {
+    if (role === "admin") {
+      void fetchAllProducts();
+      void fetchAllUsers();
+    }
+  }, [role]);
 
   const openEdit = (p: ProductRow) => {
     setEditingId(p.id);
@@ -140,7 +207,8 @@ export default function DashboardPage() {
 
       if (error) throw error;
       setEditingId(null);
-      await fetchProducts();
+      if (role === "admin") await fetchAllProducts();
+      else await fetchProducts();
     } catch (err: any) {
       setProductError(err?.message ?? "Failed to update");
     } finally {
@@ -154,7 +222,8 @@ export default function DashboardPage() {
       const { error } = await supabase.from("products").delete().eq("id", id);
       if (error) throw error;
       setDeleteConfirmId(null);
-      await fetchProducts();
+      if (role === "admin") await fetchAllProducts();
+      else await fetchProducts();
     } catch (err: any) {
       setProductError(err?.message ?? "Failed to delete");
     } finally {
@@ -205,6 +274,108 @@ export default function DashboardPage() {
       setProductError(err?.message ?? "Failed to create product");
     } finally {
       setProductsLoading(false);
+    }
+  };
+
+  const handleSetProductBadge = async () => {
+    if (!badgeTarget || badgeTarget.type !== "product") return;
+    setAdminError(null);
+    setAdminProductsLoading(true);
+    try {
+      const { error } = await supabase
+        .from("products")
+        .update({ badge: badgeInput.trim() || null })
+        .eq("id", badgeTarget.id);
+      if (error) throw error;
+      setBadgeTarget(null);
+      setBadgeInput("");
+      await fetchAllProducts();
+    } catch (err: any) {
+      setAdminError(err?.message ?? "Failed to set badge");
+    } finally {
+      setAdminProductsLoading(false);
+    }
+  };
+
+  const handleSetUserBadge = async () => {
+    if (!badgeTarget || badgeTarget.type !== "user") return;
+    setAdminError(null);
+    setAdminUsersLoading(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ badge: badgeInput.trim() || null })
+        .eq("id", badgeTarget.id);
+      if (error) throw error;
+      setBadgeTarget(null);
+      setBadgeInput("");
+      await fetchAllUsers();
+    } catch (err: any) {
+      setAdminError(err?.message ?? "Failed to set badge");
+    } finally {
+      setAdminUsersLoading(false);
+    }
+  };
+
+  const handleBanUser = async (targetUserId: string) => {
+    setAdminError(null);
+    setAdminUsersLoading(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ banned: true, banned_until: null })
+        .eq("id", targetUserId);
+      if (error) throw error;
+      setBanConfirmUserId(null);
+      await fetchAllUsers();
+    } catch (err: any) {
+      setAdminError(err?.message ?? "Failed to ban user");
+    } finally {
+      setAdminUsersLoading(false);
+    }
+  };
+
+  const handleTimeoutUser = async () => {
+    if (!timeoutTarget) return;
+    const days = parseInt(timeoutDays, 10);
+    if (Number.isNaN(days) || days < 1) {
+      setAdminError("Enter a valid number of days (1 or more).");
+      return;
+    }
+    setAdminError(null);
+    setAdminUsersLoading(true);
+    try {
+      const until = new Date();
+      until.setDate(until.getDate() + days);
+      const { error } = await supabase
+        .from("profiles")
+        .update({ banned: false, banned_until: until.toISOString() })
+        .eq("id", timeoutTarget.userId);
+      if (error) throw error;
+      setTimeoutTarget(null);
+      setTimeoutDays("1");
+      await fetchAllUsers();
+    } catch (err: any) {
+      setAdminError(err?.message ?? "Failed to set timeout");
+    } finally {
+      setAdminUsersLoading(false);
+    }
+  };
+
+  const handleUnbanUser = async (targetUserId: string) => {
+    setAdminError(null);
+    setAdminUsersLoading(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ banned: false, banned_until: null })
+        .eq("id", targetUserId);
+      if (error) throw error;
+      await fetchAllUsers();
+    } catch (err: any) {
+      setAdminError(err?.message ?? "Failed to unban");
+    } finally {
+      setAdminUsersLoading(false);
     }
   };
 
@@ -495,22 +666,160 @@ export default function DashboardPage() {
         {/* Admin view */}
         {role === "admin" && (
           <>
+            {adminError && (
+              <p className="text-sm font-medium text-red-500">{adminError}</p>
+            )}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
-              className="rounded-2xl border border-zinc-200 bg-white/80 p-4 text-xs text-zinc-700 shadow-[0_18px_45px_rgba(15,23,42,0.05)] backdrop-blur"
+              className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.06)]"
             >
-              <div className="mb-2 flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-rose-500" />
+              <div className="mb-4 flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-rose-500" />
                 <p className="text-sm font-semibold text-zinc-900">
-                  Admin panel
+                  Manage products
                 </p>
+                <span className="text-[11px] text-zinc-500">{allProducts.length} total</span>
               </div>
-              <p className="text-zinc-500">
-                You&apos;ll plug in real moderation and marketplace controls here
-                (user flags, disputes, listings).
-              </p>
+              {adminProductsLoading ? (
+                <p className="text-[11px] text-zinc-500">Loading products...</p>
+              ) : allProducts.length === 0 ? (
+                <p className="text-[11px] text-zinc-500">No products yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-zinc-200 text-zinc-500">
+                        <th className="pb-2 pr-2 font-medium">Product</th>
+                        <th className="pb-2 pr-2 font-medium">Seller</th>
+                        <th className="pb-2 pr-2 font-medium">Price</th>
+                        <th className="pb-2 pr-2 font-medium">Qty</th>
+                        <th className="pb-2 pr-2 font-medium">Badge</th>
+                        <th className="pb-2 font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allProducts.map((p) => {
+                        const seller = allUsers.find((u) => u.id === p.seller_id);
+                        const sellerName = seller?.username || seller?.discord_username || p.seller_id?.slice(0, 8) || "—";
+                        return (
+                          <tr key={p.id} className="border-b border-zinc-100">
+                            <td className="py-2.5 pr-2">
+                              <Link href={`/products/${p.id}`} className="font-medium text-zinc-900 hover:underline">
+                                {p.name}
+                              </Link>
+                            </td>
+                            <td className="py-2.5 pr-2 text-zinc-600">
+                              <Link href={`/users/${p.seller_id}`} className="hover:underline">{sellerName}</Link>
+                            </td>
+                            <td className="py-2.5 pr-2">${Number(p.price).toFixed(2)}</td>
+                            <td className="py-2.5 pr-2">{p.quantity}</td>
+                            <td className="py-2.5 pr-2">
+                              {p.badge ? (
+                                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">{p.badge}</span>
+                              ) : (
+                                "—"
+                              )}
+                            </td>
+                            <td className="py-2.5 flex items-center gap-1">
+                              <Button variant="ghost" size="icon-xs" className="h-7 w-7 rounded-lg text-zinc-500 hover:text-indigo-600" onClick={() => openEdit(p)}>
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="icon-xs" className="h-7 w-7 rounded-lg text-zinc-500 hover:text-amber-600" onClick={() => { setBadgeTarget({ type: "product", id: p.id }); setBadgeInput(p.badge ?? ""); }}>
+                                <Award className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="icon-xs" className="h-7 w-7 rounded-lg text-zinc-500 hover:text-red-600" onClick={() => setDeleteConfirmId(p.id)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                              <Link href={`/products/${p.id}`} className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-[11px] font-medium text-zinc-700 hover:bg-zinc-50">View</Link>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.05 }}
+              className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.06)]"
+            >
+              <div className="mb-4 flex items-center gap-2">
+                <UserCircle2 className="h-5 w-5 text-indigo-500" />
+                <p className="text-sm font-semibold text-zinc-900">
+                  Manage users
+                </p>
+                <span className="text-[11px] text-zinc-500">{allUsers.length} total</span>
+              </div>
+              {adminUsersLoading ? (
+                <p className="text-[11px] text-zinc-500">Loading users...</p>
+              ) : allUsers.length === 0 ? (
+                <p className="text-[11px] text-zinc-500">No users yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-zinc-200 text-zinc-500">
+                        <th className="pb-2 pr-2 font-medium">User</th>
+                        <th className="pb-2 pr-2 font-medium">Role</th>
+                        <th className="pb-2 pr-2 font-medium">Badge</th>
+                        <th className="pb-2 pr-2 font-medium">Status</th>
+                        <th className="pb-2 font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allUsers.map((u) => {
+                        const displayName = u.username || u.discord_username || u.id.slice(0, 8) || "—";
+                        const isBanned = u.banned || (u.banned_until && new Date(u.banned_until) > new Date());
+                        const status = u.banned ? "Banned" : u.banned_until && new Date(u.banned_until) > new Date() ? `Timeout until ${new Date(u.banned_until).toLocaleDateString()}` : "Active";
+                        return (
+                          <tr key={u.id} className="border-b border-zinc-100">
+                            <td className="py-2.5 pr-2">
+                              <Link href={`/users/${u.id}`} className="font-medium text-zinc-900 hover:underline">
+                                {displayName}
+                              </Link>
+                            </td>
+                            <td className="py-2.5 pr-2 text-zinc-600">{u.role}</td>
+                            <td className="py-2.5 pr-2">
+                              {u.badge ? (
+                                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">{u.badge}</span>
+                              ) : "—"}
+                            </td>
+                            <td className="py-2.5 pr-2">
+                              {isBanned ? <span className="text-red-600 font-medium">{status}</span> : <span className="text-emerald-600">{status}</span>}
+                            </td>
+                            <td className="py-2.5 flex flex-wrap items-center gap-1">
+                              <Button variant="ghost" size="icon-xs" className="h-7 w-7 rounded-lg text-zinc-500 hover:text-amber-600" onClick={() => { setBadgeTarget({ type: "user", id: u.id }); setBadgeInput(u.badge ?? ""); }}>
+                                <Award className="h-3.5 w-3.5" />
+                              </Button>
+                              {isBanned ? (
+                                <Button variant="ghost" size="icon-xs" className="h-7 w-7 rounded-lg text-zinc-500 hover:text-emerald-600" onClick={() => handleUnbanUser(u.id)} title="Unban">
+                                  <Ban className="h-3.5 w-3.5" />
+                                </Button>
+                              ) : (
+                                <>
+                                  <Button variant="ghost" size="icon-xs" className="h-7 w-7 rounded-lg text-zinc-500 hover:text-orange-600" onClick={() => setTimeoutTarget({ userId: u.id })} title="Timeout">
+                                    <Clock className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon-xs" className="h-7 w-7 rounded-lg text-zinc-500 hover:text-red-600" onClick={() => setBanConfirmUserId(u.id)} title="Ban">
+                                    <Ban className="h-3.5 w-3.5" />
+                                  </Button>
+                                </>
+                              )}
+                              <Link href={`/users/${u.id}`} className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-[11px] font-medium text-zinc-700 hover:bg-zinc-50">View</Link>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </motion.div>
           </>
         )}
@@ -616,6 +925,67 @@ export default function DashboardPage() {
             <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
             <Button size="sm" className="bg-red-600 hover:bg-red-500" disabled={productsLoading} onClick={() => deleteConfirmId && handleDeleteProduct(deleteConfirmId)}>
               {productsLoading ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Admin: Badge dialog (product or user) */}
+      <Dialog open={!!badgeTarget} onOpenChange={(o) => !o && setBadgeTarget(null)}>
+        <DialogContent className="max-w-sm border-zinc-200">
+          <DialogHeader>
+            <DialogTitle>{badgeTarget?.type === "product" ? "Product badge" : "User badge"}</DialogTitle>
+            <DialogDescription>Set a short badge label (e.g. Verified, Featured). Leave empty to clear.</DialogDescription>
+          </DialogHeader>
+          <input
+            value={badgeInput}
+            onChange={(e) => setBadgeInput(e.target.value)}
+            placeholder="e.g. Featured"
+            className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs"
+          />
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setBadgeTarget(null)}>Cancel</Button>
+            <Button size="sm" disabled={adminProductsLoading || adminUsersLoading} onClick={() => badgeTarget?.type === "product" ? handleSetProductBadge() : handleSetUserBadge()}>
+              {adminProductsLoading || adminUsersLoading ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Admin: Timeout dialog */}
+      <Dialog open={!!timeoutTarget} onOpenChange={(o) => !o && setTimeoutTarget(null)}>
+        <DialogContent className="max-w-sm border-zinc-200">
+          <DialogHeader>
+            <DialogTitle>Timeout user</DialogTitle>
+            <DialogDescription>User will be restricted until the timeout period ends. Enter number of days.</DialogDescription>
+          </DialogHeader>
+          <input
+            type="number"
+            min={1}
+            value={timeoutDays}
+            onChange={(e) => setTimeoutDays(e.target.value)}
+            className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs"
+          />
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setTimeoutTarget(null)}>Cancel</Button>
+            <Button size="sm" disabled={adminUsersLoading} onClick={handleTimeoutUser}>
+              {adminUsersLoading ? "Saving..." : "Set timeout"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Admin: Ban confirm dialog */}
+      <Dialog open={!!banConfirmUserId} onOpenChange={(o) => !o && setBanConfirmUserId(null)}>
+        <DialogContent className="max-w-sm border-zinc-200">
+          <DialogHeader>
+            <DialogTitle>Ban user?</DialogTitle>
+            <DialogDescription>Banned users are restricted until you unban them. You can unban from the user table.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setBanConfirmUserId(null)}>Cancel</Button>
+            <Button size="sm" className="bg-red-600 hover:bg-red-500" disabled={adminUsersLoading} onClick={() => banConfirmUserId && handleBanUser(banConfirmUserId)}>
+              {adminUsersLoading ? "Saving..." : "Ban"}
             </Button>
           </DialogFooter>
         </DialogContent>
