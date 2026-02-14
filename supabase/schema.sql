@@ -6,9 +6,17 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   username text,
   discord_handle text,
+  discord_id text,
+  discord_username text,
+  discord_avatar text,
   role public.user_role default 'buyer',
   created_at timestamptz default now()
 );
+
+-- Run this if profiles already exists (add Discord columns):
+-- alter table public.profiles add column if not exists discord_id text;
+-- alter table public.profiles add column if not exists discord_username text;
+-- alter table public.profiles add column if not exists discord_avatar text;
 
 alter table public.profiles enable row level security;
 

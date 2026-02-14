@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   Grid3X3,
@@ -217,24 +218,33 @@ export function Header() {
         </div>
 
         <nav className="hidden items-center gap-5 text-xs font-medium text-zinc-500 md:flex">
-          <button className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 transition-colors hover:text-zinc-900">
+          <Link
+            href="/marketplace"
+            className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 transition-colors hover:text-zinc-900"
+          >
             <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-zinc-100 text-[10px]">
               <Grid3X3 className="h-3 w-3 text-zinc-700" aria-hidden="true" />
             </span>
             Marketplace
-          </button>
-          <button className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 transition-colors hover:text-zinc-900">
+          </Link>
+          <Link
+            href="/safety"
+            className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 transition-colors hover:text-zinc-900"
+          >
             <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-zinc-100 text-[10px]">
               <ShieldCheck className="h-3 w-3 text-zinc-700" aria-hidden="true" />
             </span>
             Safety
-          </button>
-          <button className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 transition-colors hover:text-zinc-900">
+          </Link>
+          <Link
+            href="/perks"
+            className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 transition-colors hover:text-zinc-900"
+          >
             <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-zinc-100 text-[10px]">
               <Sparkles className="h-3 w-3 text-zinc-700" aria-hidden="true" />
             </span>
             Perks
-          </button>
+          </Link>
         </nav>
 
         <div className="flex items-center gap-2">
