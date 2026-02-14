@@ -16,9 +16,13 @@ import {
   Award,
   Ban,
   Clock,
+  ShoppingCart,
+  MessageCircle,
+  HelpCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { useCart } from "@/context/CartContext";
 import {
   Dialog,
   DialogContent,
@@ -53,6 +57,7 @@ type ProfileRow = {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { itemCount: cartItemCount } = useCart();
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<UserRole>(null);
   const [email, setEmail] = useState<string | null>(null);
@@ -419,18 +424,153 @@ export default function DashboardPage() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
-              className="rounded-2xl border border-zinc-200 bg-white/80 p-4 text-xs text-zinc-700 shadow-[0_18px_45px_rgba(15,23,42,0.05)] backdrop-blur"
+              className="md:col-span-2 rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.06)]"
             >
-              <div className="mb-2 flex items-center gap-2">
-                <ShoppingBag className="h-4 w-4 text-indigo-500" />
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <ShoppingCart className="h-5 w-5 text-indigo-500" />
+                  <p className="text-sm font-semibold text-zinc-900">
+                    Your cart
+                  </p>
+                </div>
+                <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[11px] font-medium text-indigo-700">
+                  {cartItemCount} item{cartItemCount === 1 ? "" : "s"}
+                </span>
+              </div>
+              {cartItemCount === 0 ? (
+                <p className="text-xs text-zinc-600 mb-4">
+                  Your cart is empty. Browse the marketplace to add Nitro, boosts, OG handles, and more. When you’re ready, you’ll contact each seller on Discord to complete your trade.
+                </p>
+              ) : (
+                <p className="text-xs text-zinc-600 mb-4">
+                  You have items from different sellers. In your cart you can see each seller’s items and contact them on Discord to complete each trade (escrow recommended).
+                </p>
+              )}
+              <Button asChild size="sm" className="rounded-full" variant={cartItemCount > 0 ? "default" : "outline"}>
+                <Link href="/cart" className="inline-flex items-center gap-2">
+                  <ShoppingCart className="h-4 w-4" />
+                  {cartItemCount > 0 ? "View cart" : "Go to cart"}
+                </Link>
+              </Button>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.05 }}
+              className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.06)]"
+            >
+              <div className="mb-3 flex items-center gap-2">
+                <ShoppingBag className="h-5 w-5 text-emerald-500" />
                 <p className="text-sm font-semibold text-zinc-900">
-                  Buyer overview
+                  Quick actions
                 </p>
               </div>
-              <p className="text-zinc-500">
-                You don&apos;t have any active purchases yet. Use the marketplace
-                on the home page to start buying Nitro, boosts or OG handles.
+              <nav className="space-y-2">
+                <Link
+                  href="/marketplace"
+                  className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 py-2.5 text-xs font-medium text-zinc-700 transition hover:border-indigo-200 hover:bg-indigo-50/50"
+                >
+                  <ShoppingBag className="h-4 w-4 text-zinc-500" />
+                  Browse marketplace
+                </Link>
+                <Link
+                  href="/safety"
+                  className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 py-2.5 text-xs font-medium text-zinc-700 transition hover:border-indigo-200 hover:bg-indigo-50/50"
+                >
+                  <ShieldCheck className="h-4 w-4 text-zinc-500" />
+                  Safety & escrow guide
+                </Link>
+                <Link
+                  href="/discord"
+                  className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 py-2.5 text-xs font-medium text-zinc-700 transition hover:border-indigo-200 hover:bg-indigo-50/50"
+                >
+                  <MessageCircle className="h-4 w-4 text-zinc-500" />
+                  Join Discord
+                </Link>
+                <Link
+                  href="/support"
+                  className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 py-2.5 text-xs font-medium text-zinc-700 transition hover:border-indigo-200 hover:bg-indigo-50/50"
+                >
+                  <HelpCircle className="h-4 w-4 text-zinc-500" />
+                  Support & contact
+                </Link>
+              </nav>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.1 }}
+              className="md:col-span-2 rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.06)]"
+            >
+              <div className="mb-2 flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-amber-500" />
+                <p className="text-sm font-semibold text-zinc-900">
+                  How buying works
+                </p>
+              </div>
+              <ol className="list-decimal list-inside space-y-2 text-xs text-zinc-600">
+                <li>Add items to your cart from the marketplace or product pages.</li>
+                <li>Open your cart to see items grouped by seller.</li>
+                <li>Contact each seller on Discord (use the &quot;Contact this seller&quot; button).</li>
+                <li>Agree on price and delivery; use escrow for larger trades.</li>
+                <li>Complete the trade in Discord with staff support if needed.</li>
+              </ol>
+              <p className="mt-3 text-[11px] text-zinc-500">
+                OwnMarket doesn’t process payments. All trades happen between you and the seller on Discord. Always use the official server and escrow when recommended.
               </p>
+            </motion.div>
+
+            {/* Connect Discord - buyers */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.15 }}
+              className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.06)]"
+            >
+              <div className="mb-2 flex items-center gap-2">
+                <MessageCircleMore className="h-5 w-5 text-indigo-500" />
+                <p className="text-sm font-semibold text-zinc-900">
+                  Discord profile
+                </p>
+              </div>
+              {discordUsername ? (
+                <div className="flex items-center gap-3">
+                  {discordId && discordAvatar && (
+                    <img
+                      src={`https://cdn.discordapp.com/avatars/${discordId}/${discordAvatar}.png?size=80`}
+                      alt=""
+                      className="h-10 w-10 rounded-full bg-zinc-200"
+                    />
+                  )}
+                  <div>
+                    <p className="text-xs font-medium text-zinc-700">
+                      Connected as <span className="text-zinc-900">@{discordUsername}</span>
+                    </p>
+                    <p className="text-[11px] text-zinc-500">
+                      Sellers will see your Discord when you contact them.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-[11px] text-zinc-600 mb-3">
+                    Connect Discord so sellers recognize you when you message them.
+                  </p>
+                  <Button
+                    size="sm"
+                    className="rounded-full bg-indigo-600 hover:bg-indigo-500"
+                    asChild
+                  >
+                    <a href={userId ? `/api/auth/discord?userId=${encodeURIComponent(userId)}` : "#"}>
+                      <MessageCircleMore className="h-4 w-4 mr-2" />
+                      Connect Discord
+                      <ExternalLink className="h-3 w-3 ml-1" />
+                    </a>
+                  </Button>
+                </>
+              )}
             </motion.div>
           </>
         )}
