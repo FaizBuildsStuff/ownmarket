@@ -13,6 +13,8 @@ import {
   UserPlus,
   LayoutDashboard,
   ShoppingCart,
+  Menu,
+  X,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -47,6 +49,7 @@ export function Header() {
   const [userId, setUserId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<UserRole>(null);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -192,7 +195,14 @@ export function Header() {
   const openAuth = (mode: AuthMode) => {
     setAuthMode(mode);
     setIsAuthOpen(true);
+    setIsMobileMenuOpen(false);
   };
+
+  const navLinks = [
+    { href: "/marketplace", icon: Grid3X3, label: "Marketplace" },
+    { href: "/safety", icon: ShieldCheck, label: "Safety" },
+    { href: "/perks", icon: Sparkles, label: "Perks" },
+  ];
 
   return (
     <>
@@ -200,60 +210,45 @@ export function Header() {
         initial="hidden"
         animate="visible"
         variants={headerVariants}
-        className="mb-6 flex items-center justify-between rounded-2xl border border-zinc-200 bg-white/80 px-4 py-3 text-sm text-zinc-700 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur md:mb-10 md:px-5"
+        className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-zinc-200 bg-white/80 px-3 py-2.5 text-sm text-zinc-700 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur sm:mb-6 sm:px-4 sm:py-3 md:mb-10 md:px-5"
       >
-        <div className="flex items-center gap-3">
-          <div className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-zinc-900 text-xs font-semibold text-zinc-50 shadow-sm">
+        <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
+          <div className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-xs font-semibold text-zinc-50 shadow-sm sm:rounded-2xl">
             OM
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-semibold text-zinc-900">OwnMarket</p>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-600">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <p className="truncate text-sm font-semibold text-zinc-900">OwnMarket</p>
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 sm:px-2 sm:text-[11px]">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                 Live
               </span>
             </div>
-            <p className="text-[11px] text-zinc-500">
+            <p className="hidden truncate text-[11px] text-zinc-500 sm:block">
               Discord marketplace for Nitro, boosts & more
             </p>
           </div>
-        </div>
+        </Link>
 
-        <nav className="hidden items-center gap-5 text-xs font-medium text-zinc-500 md:flex">
-          <Link
-            href="/marketplace"
-            className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 transition-colors hover:text-zinc-900"
-          >
-            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-zinc-100 text-[10px]">
-              <Grid3X3 className="h-3 w-3 text-zinc-700" aria-hidden="true" />
-            </span>
-            Marketplace
-          </Link>
-          <Link
-            href="/safety"
-            className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 transition-colors hover:text-zinc-900"
-          >
-            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-zinc-100 text-[10px]">
-              <ShieldCheck className="h-3 w-3 text-zinc-700" aria-hidden="true" />
-            </span>
-            Safety
-          </Link>
-          <Link
-            href="/perks"
-            className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 transition-colors hover:text-zinc-900"
-          >
-            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-zinc-100 text-[10px]">
-              <Sparkles className="h-3 w-3 text-zinc-700" aria-hidden="true" />
-            </span>
-            Perks
-          </Link>
+        <nav className="hidden items-center gap-3 text-xs font-medium text-zinc-500 md:flex md:gap-5">
+          {navLinks.map(({ href, icon: Icon, label }) => (
+            <Link
+              key={href}
+              href={href}
+              className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 transition-colors hover:text-zinc-900"
+            >
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-zinc-100 text-[10px]">
+                <Icon className="h-3 w-3 text-zinc-700" aria-hidden />
+              </span>
+              {label}
+            </Link>
+          ))}
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <Link
             href="/cart"
-            className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-600 transition hover:border-zinc-300 hover:text-zinc-900"
+            className="relative inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-600 transition hover:border-zinc-300 hover:text-zinc-900 sm:h-9 sm:w-9"
             aria-label="Cart"
           >
             <ShoppingCart className="h-4 w-4" />
@@ -263,66 +258,172 @@ export function Header() {
               </span>
             )}
           </Link>
-          {!userId ? (
-            <>
-              <Button
-                onClick={() => openAuth("login")}
-                variant="outline"
-                size="xs"
-                className="hidden rounded-full border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-700 shadow-sm hover:border-zinc-300 hover:text-zinc-900 md:inline-flex"
-              >
-                <LogIn
-                  aria-hidden="true"
-                  className="h-3.5 w-3.5 text-zinc-700"
-                />
-                Log in
-              </Button>
-              <Button
-                onClick={() => openAuth("signup")}
-                size="xs"
-                className="inline-flex items-center gap-1.5 rounded-full bg-zinc-900 px-3.5 py-1.5 text-[11px] font-medium text-zinc-50 shadow-sm transition-colors hover:bg-zinc-800"
-              >
-                <UserPlus
-                  aria-hidden="true"
-                  className="h-3.5 w-3.5 text-zinc-50"
-                />
-                Sign up
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                onClick={() => router.push("/dashboard")}
-                variant="outline"
-                size="xs"
-                className="hidden items-center gap-1.5 rounded-full border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-700 shadow-sm transition-colors hover:border-zinc-300 hover:text-zinc-900 md:inline-flex"
-              >
-                <LayoutDashboard
-                  aria-hidden="true"
-                  className="h-3.5 w-3.5 text-zinc-700"
-                />
-                Dashboard
-                {userRole && (
-                  <span className="ml-1 rounded-full bg-zinc-900/5 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-zinc-500">
-                    {userRole}
-                  </span>
-                )}
-              </Button>
-              <Button
-                onClick={handleLogout}
-                size="xs"
-                className="inline-flex items-center gap-1.5 rounded-full bg-zinc-900 px-3.5 py-1.5 text-[11px] font-medium text-zinc-50 shadow-sm transition-colors hover:bg-zinc-800"
-              >
-                <LogOut
-                  aria-hidden="true"
-                  className="h-3.5 w-3.5 text-zinc-50"
-                />
-                Logout
-              </Button>
-            </>
-          )}
+
+          <div className="hidden md:flex md:items-center md:gap-2">
+            {!userId ? (
+              <>
+                <Button
+                  onClick={() => openAuth("login")}
+                  variant="outline"
+                  size="xs"
+                  className="rounded-full border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-700 shadow-sm hover:border-zinc-300 hover:text-zinc-900"
+                >
+                  <LogIn className="h-3.5 w-3.5 text-zinc-700" aria-hidden />
+                  Log in
+                </Button>
+                <Button
+                  onClick={() => openAuth("signup")}
+                  size="xs"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-zinc-900 px-3.5 py-1.5 text-[11px] font-medium text-zinc-50 shadow-sm hover:bg-zinc-800"
+                >
+                  <UserPlus className="h-3.5 w-3.5 text-zinc-50" aria-hidden />
+                  Sign up
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  onClick={() => router.push("/dashboard")}
+                  variant="outline"
+                  size="xs"
+                  className="items-center gap-1.5 rounded-full border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-700 shadow-sm hover:border-zinc-300 hover:text-zinc-900"
+                >
+                  <LayoutDashboard className="h-3.5 w-3.5 text-zinc-700" aria-hidden />
+                  Dashboard
+                  {userRole && (
+                    <span className="ml-1 rounded-full bg-zinc-900/5 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-zinc-500">
+                      {userRole}
+                    </span>
+                  )}
+                </Button>
+                <Button
+                  onClick={handleLogout}
+                  size="xs"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-zinc-900 px-3.5 py-1.5 text-[11px] font-medium text-zinc-50 shadow-sm hover:bg-zinc-800"
+                >
+                  <LogOut className="h-3.5 w-3.5 text-zinc-50" aria-hidden />
+                  Logout
+                </Button>
+              </>
+            )}
+          </div>
+
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 rounded-full border-zinc-200 bg-white sm:h-9 sm:w-9 md:hidden"
+            onClick={() => setIsMobileMenuOpen(true)}
+            aria-label="Open menu"
+          >
+            <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
+          </Button>
         </div>
       </motion.header>
+
+      {/* Mobile menu */}
+      <Dialog open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+        <DialogContent
+          showCloseButton={false}
+          className="top-[12%] left-1/2 w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 translate-y-0 border-zinc-200 bg-white p-0 shadow-xl"
+        >
+          <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
+            <span className="text-sm font-semibold text-zinc-900">Menu</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full"
+              onClick={() => setIsMobileMenuOpen(false)}
+              aria-label="Close menu"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <nav className="flex flex-col py-2">
+            {navLinks.map(({ href, icon: Icon, label }) => (
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900"
+              >
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-100">
+                  <Icon className="h-4 w-4 text-zinc-600" />
+                </span>
+                {label}
+              </Link>
+            ))}
+            <Link
+              href="/cart"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 hover:text-zinc-900"
+            >
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-100">
+                <ShoppingCart className="h-4 w-4 text-zinc-600" />
+              </span>
+              Cart
+              {itemCount > 0 && (
+                <span className="ml-auto rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">
+                  {itemCount}
+                </span>
+              )}
+            </Link>
+          </nav>
+          <div className="border-t border-zinc-200 p-4">
+            {!userId ? (
+              <div className="flex flex-col gap-2">
+                <Button
+                  onClick={() => openAuth("login")}
+                  variant="outline"
+                  size="sm"
+                  className="w-full rounded-full"
+                >
+                  <LogIn className="mr-2 h-4 w-4" />
+                  Log in
+                </Button>
+                <Button
+                  onClick={() => openAuth("signup")}
+                  size="sm"
+                  className="w-full rounded-full bg-zinc-900 hover:bg-zinc-800"
+                >
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Sign up
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <Button
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    router.push("/dashboard");
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="w-full rounded-full"
+                >
+                  <LayoutDashboard className="mr-2 h-4 w-4" />
+                  Dashboard
+                  {userRole && (
+                    <span className="ml-2 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] uppercase text-zinc-600">
+                      {userRole}
+                    </span>
+                  )}
+                </Button>
+                <Button
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    handleLogout();
+                  }}
+                  size="sm"
+                  className="w-full rounded-full bg-zinc-900 hover:bg-zinc-800"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isAuthOpen} onOpenChange={setIsAuthOpen}>
         <DialogContent className="w-full max-w-md border-zinc-200 bg-white text-sm text-zinc-800 shadow-2xl">

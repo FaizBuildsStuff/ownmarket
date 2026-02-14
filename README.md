@@ -1,37 +1,124 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OwnMarket
 
-## Getting Started
+**Discord marketplace for Nitro, server boosts, OG usernames, and vanity tags.**  
+Verified sellers, escrow-first trading, and a single place to browse and contact sellers.
 
-First, run the development server:
+---
+
+## Stack
+
+| Layer        | Tech |
+|-------------|------|
+| Framework   | [Next.js](https://nextjs.org) 16 (App Router) |
+| UI          | React 19, [Tailwind CSS](https://tailwindcss.com) 4, [Framer Motion](https://www.framer.com/motion), [Radix UI](https://www.radix-ui.com), [Lucide](https://lucide.dev) |
+| Data        | [Supabase](https://supabase.com) (Auth + Postgres + RLS) |
+| Font        | [Roboto Condensed](https://fonts.google.com/specimen/Roboto+Condensed) (variable) |
+
+---
+
+## Quick start
 
 ```bash
+git clone <repo-url>
+cd ownmarket
+npm install
+cp .env.example .env   # then fill in values
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open **http://localhost:3000**.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scripts
 
-## Learn More
+| Command        | Description |
+|----------------|-------------|
+| `npm run dev`  | Start dev server (hot reload) |
+| `npm run build`| Production build |
+| `npm run start`| Run production server |
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Environment
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Create a `.env` (or copy from `.env.example`). Required:
 
-## Deploy on Vercel
+| Variable | Description |
+|----------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-only: Discord callback, contact API) |
+| `NEXT_PUBLIC_APP_URL` | App origin (e.g. `http://localhost:3000` or `https://ownmarket.io`) |
+| `DISCORD_CLIENT_ID` | Discord OAuth app client ID |
+| `DISCORD_CLIENT_SECRET` | Discord OAuth app client secret |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+See [docs/DISCORD_SETUP.md](docs/DISCORD_SETUP.md) for Discord app setup.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-# ownmarket
+---
+
+## Project structure
+
+```
+ownmarket/
+├── app/
+│   ├── layout.tsx          # Root layout, metadata, CartProvider
+│   ├── page.tsx            # Home (hero, featured products)
+│   ├── marketplace/        # All listings
+│   ├── products/[id]/      # Product detail
+│   ├── users/[id]/         # User/seller profile
+│   ├── cart/               # Cart (grouped by seller)
+│   ├── dashboard/          # Role-based: buyer / seller / admin
+│   ├── support/            # Support hub
+│   ├── contact/            # Contact form
+│   ├── safety/             # Safety & escrow
+│   ├── perks/              # Perks info
+│   ├── discord/            # Discord invite/redirect
+│   └── api/
+│       ├── auth/discord/   # OAuth flow
+│       └── contact/        # Contact form submit → Supabase
+├── components/             # Header, Footer, FAQs, Integrations, UI
+├── context/                # CartContext (localStorage cart)
+├── lib/                    # supabaseClient, cart helpers, utils
+├── public/                 # Static assets, manifest.json
+├── supabase/
+│   └── schema.sql          # Profiles, products, contact_requests, RLS
+└── docs/                   # DISCORD_SETUP.md, etc.
+```
+
+---
+
+## Features
+
+- **Roles:** `buyer` | `seller` | `admin` (stored in `profiles.role`).
+- **Auth:** Email/password (Supabase) + optional Discord OAuth (link profile for marketplace display).
+- **Cart:** Client-side cart (localStorage), grouped by seller; contact each seller on Discord.
+- **Admin:** Manage all products (edit, delete, badge) and users (ban, timeout, badge).
+- **Contact:** Form submissions stored in Supabase (`contact_requests`); admins can read.
+
+---
+
+## Database
+
+Run [supabase/schema.sql](supabase/schema.sql) in the Supabase SQL editor (or use migrations).  
+Tables: `profiles`, `products`, `contact_requests`. RLS enforces per-role access.
+
+---
+
+## Deploy
+
+- **Vercel:** Connect repo, set env vars, deploy. Set `NEXT_PUBLIC_APP_URL` to your production URL.
+- **Else:** `npm run build && npm run start`; ensure Node 18+ and env are set.
+
+---
+
+## Docs
+
+- [Discord app & OAuth](docs/DISCORD_SETUP.md)
+- [CONTEXT.md](CONTEXT.md) — project context for contributors and AI assistants
+
+---
+
+## License
+
+Private / All rights reserved.
