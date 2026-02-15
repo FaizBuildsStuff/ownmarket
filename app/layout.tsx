@@ -12,7 +12,7 @@ const robotoCondensed = Roboto_Condensed({
   weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://ownmarket.io";
+const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://ownmarket.shop";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

@@ -49,7 +49,7 @@ Create a `.env` (or copy from `.env.example`). Required:
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-only: Discord callback, contact API) |
-| `NEXT_PUBLIC_APP_URL` | App origin (e.g. `http://localhost:3000` or `https://ownmarket.io`) |
+| `NEXT_PUBLIC_APP_URL` | App origin (e.g. `https://ownmarket.shop` in production or `http://localhost:3000` locally) |
 | `DISCORD_CLIENT_ID` | Discord OAuth app client ID |
 | `DISCORD_CLIENT_SECRET` | Discord OAuth app client secret |
 
