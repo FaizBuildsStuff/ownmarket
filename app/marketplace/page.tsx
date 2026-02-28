@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { useCart } from "@/context/CartContext";
-import { ShieldCheck, ShoppingBag, ShoppingCart } from "lucide-react";
+import { Plus, ShoppingBag, ArrowUpRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CardSpotlight } from "@/components/ui/card-spotlight";
+import gsap from "gsap";
 
 type ProductCard = {
   id: string;
@@ -15,7 +15,6 @@ type ProductCard = {
   price: number;
   quantity: number;
   description: string | null;
-  discord_channel_link: string | null;
   seller_username?: string | null;
 };
 
@@ -25,160 +24,157 @@ export default function MarketplacePage() {
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
-useEffect(() => {
-  setMounted(true);
-}, []);
-
-
   useEffect(() => {
-    const fetchProducts = async () => {
-      const { data } = await supabase
+    setMounted(true);
+    fetchProducts();
+  }, []);
+
+  // GSAP: Smooth Staggered Reveal
+  useEffect(() => {
+    if (!loading && products.length > 0) {
+      gsap.fromTo(
+        ".product-item",
+        { y: 20, opacity: 0 },
+        { 
+          y: 0, 
+          opacity: 1, 
+          duration: 1, 
+          stagger: 0.05, 
+          ease: "expo.out",
+          delay: 0.1 
+        }
+      );
+    }
+  }, [loading, products]);
+
+  const fetchProducts = async () => {
+    try {
+      const { data: baseProducts } = await supabase
         .from("products")
-        .select(
-          "id, seller_id, name, price, quantity, description, discord_channel_link"
-        )
+        .select("id, seller_id, name, price, quantity, description")
         .order("created_at", { ascending: false });
 
-      const baseProducts = ((data as any) ?? []) as ProductCard[];
+      if (!baseProducts) return;
 
-      if (baseProducts.length === 0) {
-        setProducts([]);
-        setLoading(false);
-        return;
-      }
+      const sellerIds = Array.from(new Set(baseProducts.map((p) => p.seller_id).filter(Boolean)));
+      const { data: profileData } = await supabase.from("profiles").select("id, username").in("id", sellerIds);
 
-      const sellerIds = Array.from(
-        new Set(baseProducts.map((p) => p.seller_id).filter(Boolean))
-      );
-
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("id, username")
-        .in("id", sellerIds);
-
-      const profileMap = new Map<string, string | null>();
-      (profileData as any)?.forEach(
-        (p: { id: string; username: string | null }) =>
-          profileMap.set(p.id, p.username)
-      );
-
-      const enriched = baseProducts.map((p) => ({
+      const profileMap = new Map(profileData?.map((p) => [p.id, p.username]));
+      const enriched = baseProducts.map((p: any) => ({
         ...p,
-        seller_username: profileMap.get(p.seller_id) ?? null,
+        seller_username: profileMap.get(p.seller_id) ?? "Verified",
       }));
 
       setProducts(enriched);
+    } finally {
       setLoading(false);
-    };
+    }
+  };
 
-    void fetchProducts();
-  }, []);
+  if (!mounted) return null;
 
   return (
-    <div className="relative mx-auto flex min-h-[calc(100vh-120px)] w-full max-w-6xl flex-col gap-12 px-6 py-12 lg:px-10">
+    <div className="min-h-screen bg-white text-zinc-900 selection:bg-black selection:text-white">
+      <div className="mx-auto max-w-[1400px] px-6 py-20 lg:px-10">
+        
+        {/* MINIMALIST NAVIGATION */}
+        <header className="mb-32 flex flex-col md:flex-row md:items-end justify-between gap-12">
+          <div className="space-y-4">
+            <h1 className="text-6xl font-light tracking-tighter md:text-8xl">
+              Market <span className="text-zinc-300 italic">Place</span>
+            </h1>
+            <p className="text-sm font-medium uppercase tracking-[0.3em] text-zinc-400">
+              Curated Digital Goods
+            </p>
+          </div>
+          <div className="flex gap-10 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+            <span className="text-zinc-900 border-b border-zinc-900 pb-1 cursor-pointer">All Assets</span>
+            <span className="hover:text-zinc-900 cursor-pointer transition-colors">Recent Drops</span>
+            <span className="hover:text-zinc-900 cursor-pointer transition-colors">Verified Only</span>
+          </div>
+        </header>
 
-      {/* HEADER */}
-      <header className="space-y-4">
-        <p className="text-xs uppercase tracking-[0.35em] text-zinc-400">
-          Marketplace
-        </p>
-        <h1 className="text-4xl font-semibold tracking-tight text-zinc-900">
-          Discover Digital Assets
-          <span className="block bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400 bg-clip-text text-transparent">
-            Premium Discord Perks
-          </span>
-        </h1>
-        <p className="max-w-xl text-sm text-zinc-600">
-          Browse Nitro, boosts, OG handles, and more from trusted sellers.
-          All trades happen directly via Discord.
-        </p>
-      </header>
+        {/* 4-COLUMN MINIMAL GRID */}
+        {loading ? (
+          <div className="grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="aspect-[4/5] animate-pulse bg-zinc-50 rounded-sm" />
+            ))}
+          </div>
+        ) : products.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-40 border-t border-zinc-100">
+            <ShoppingBag className="h-8 w-8 text-zinc-200 mb-4" strokeWidth={1} />
+            <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 italic">No inventory available</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-x-8 gap-y-20 sm:grid-cols-2 lg:grid-cols-4">
+            {products.map((p) => (
+              <div key={p.id} className="product-item group flex flex-col">
+                
+                {/* 1. IMAGE CANVAS */}
+                <div className="relative mb-6 aspect-[4/5] overflow-hidden bg-zinc-50 transition-colors group-hover:bg-zinc-100">
+                  <div className="absolute inset-0 flex items-center justify-center opacity-10 group-hover:opacity-20 transition-opacity">
+                    <span className="text-8xl font-black">{p.name[0]}</span>
+                  </div>
+                  
+                  {/* Hover Quick-Action */}
+                  <div className="absolute inset-0 flex items-end p-6 translate-y-4 opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100">
+                    <Button
+                      onClick={() => addItem(p.id, 1, p.quantity)}
+                      className="h-12 w-full rounded-none bg-black text-white hover:bg-zinc-800 transition-colors text-[10px] font-bold uppercase tracking-widest"
+                    >
+                      {items[p.id] ? <span className="flex items-center gap-2"><Check className="h-3 w-3"/> Added to Cart</span> : "Add to Cart"}
+                    </Button>
+                  </div>
 
-      {loading ? (
-        <p className="text-sm text-zinc-500">Loading marketplace...</p>
-      ) : products.length === 0 ? (
-        <div className="rounded-3xl border border-zinc-200 bg-white p-12 text-center shadow-sm">
-          <ShoppingBag className="mx-auto mb-4 h-12 w-12 text-zinc-300" />
-          <p className="text-sm font-medium text-zinc-900">
-            No listings yet
-          </p>
-          <p className="mt-1 text-xs text-zinc-500">
-            Sellers will start posting here soon.
-          </p>
-        </div>
-      ) : (
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {products.map((p) => (
-            <CardSpotlight
-              key={p.id}
-              className="relative rounded-3xl bg-zinc-900 p-6 text-white shadow-[0_30px_80px_rgba(0,0,0,0.25)]"
-            >
-              <Link
-                href={`/products/${p.id}`}
-                className="relative z-20 block space-y-4"
-              >
-                {/* Title + Price */}
-                <div className="flex items-start justify-between gap-3">
-                  <h3 className="text-lg font-semibold">
-                    {p.name}
-                  </h3>
-
-                  <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur">
-                    ${p.price.toFixed(2)}
-                  </span>
+                  <Link href={`/products/${p.id}`} className="absolute top-6 right-6">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/50 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                      <ArrowUpRight className="h-4 w-4" />
+                    </div>
+                  </Link>
                 </div>
 
-                {/* Description */}
-                <p className="line-clamp-2 text-sm text-zinc-300">
-                  {p.description ||
-                    "Premium Discord digital asset from a trusted seller."}
-                </p>
+                {/* 2. PRODUCT INFO */}
+                <div className="flex flex-col space-y-2">
+                  <div className="flex items-baseline justify-between">
+                    <h3 className="text-sm font-bold uppercase tracking-tight text-zinc-900">
+                      {p.name}
+                    </h3>
+                    <span className="text-xs font-medium text-zinc-400">
+                      ${p.price.toLocaleString()}
+                    </span>
+                  </div>
+                  
+                  <p className="text-[11px] leading-relaxed text-zinc-400 line-clamp-1 font-medium italic">
+                    {p.description || "Verified Digital Asset"}
+                  </p>
 
-                {/* Stock + Escrow */}
-                <div className="flex items-center justify-between text-xs text-zinc-400">
-                  <span>
-                    {p.quantity > 0
-                      ? `${p.quantity} in stock`
-                      : "Out of stock"}
-                  </span>
-
-                  <span className="flex items-center gap-1 text-emerald-400">
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    Escrow safe
-                  </span>
-                </div>
-
-                {/* Seller */}
-                <div className="text-xs text-zinc-400">
-                  by{" "}
-                  <span className="font-medium text-zinc-200">
-                    {p.seller_username || "unknown seller"}
-                  </span>
-                </div>
-              </Link>
-
-              {/* CTA */}
-              {p.quantity > 0 && (
-                <div className="relative z-20 mt-6">
-                  <Button
-                    size="sm"
-                    className="w-full rounded-full bg-white text-black hover:bg-indigo-400 hover:text-white transition"
-                    onClick={() => addItem(p.id, 1, p.quantity)}
-                  >
-                    <ShoppingCart className="mr-2 h-4 w-4" />
-                    Add to cart
-                    {(items[p.id] ?? 0) > 0 && (
-                      <span className="ml-2 text-xs opacity-70">
-                        ({items[p.id]})
-                      </span>
+                  <div className="pt-2 flex items-center justify-between">
+                    <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-300">
+                      Merchant: {p.seller_username}
+                    </div>
+                    {items[p.id] && (
+                      <div className="h-1.5 w-1.5 rounded-full bg-black animate-pulse" />
                     )}
-                  </Button>
+                  </div>
                 </div>
-              )}
-            </CardSpotlight>
-          ))}
-        </div>
-      )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* MINIMAL FOOTER */}
+        <footer className="mt-60 flex flex-col md:flex-row justify-between items-center gap-8 border-t border-zinc-100 pt-10 pb-20">
+          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-300">
+            Secure Digital Infrastructure
+          </p>
+          <div className="flex gap-8 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+            <span className="hover:text-black transition-colors cursor-pointer">Support</span>
+            <span className="hover:text-black transition-colors cursor-pointer">Privacy</span>
+            <span className="hover:text-black transition-colors cursor-pointer">Terms</span>
+          </div>
+        </footer>
+      </div>
     </div>
   );
 }
