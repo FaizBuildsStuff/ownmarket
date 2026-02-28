@@ -80,7 +80,7 @@ export default function DashboardPage() {
         duration: 1,
         ease: "power4.out",
       });
-  
+
       gsap.from(".seller-card", {
         opacity: 0,
         y: 50,
@@ -88,7 +88,7 @@ export default function DashboardPage() {
         stagger: 0.12,
         ease: "power4.out",
       });
-  
+
       gsap.to(".floating-orb", {
         y: 40,
         duration: 6,
@@ -98,7 +98,7 @@ export default function DashboardPage() {
         stagger: 1,
       });
     });
-  
+
     return () => ctx.revert();
   }, []);
   const [products, setProducts] = useState<ProductRow[]>([]);
@@ -424,7 +424,7 @@ export default function DashboardPage() {
       </div>
     );
   }
-  
+
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-120px)] w-full max-w-6xl flex-col gap-8 px-6 py-8 lg:px-10 lg:py-12">
@@ -611,288 +611,287 @@ export default function DashboardPage() {
 
         {/* Seller view */}
         {role === "seller" && (
-  <>
-    <div className="relative md:col-span-3 overflow-hidden rounded-3xl border border-zinc-200/70 bg-gradient-to-br from-white via-zinc-50 to-indigo-50/40 p-10 shadow-[0_30px_80px_rgba(15,23,42,0.08)]">
+          <>
+            <div className="relative md:col-span-3 overflow-hidden rounded-3xl border border-zinc-200/70 bg-gradient-to-br from-white via-zinc-50 to-indigo-50/40 p-10 shadow-[0_30px_80px_rgba(15,23,42,0.08)]">
 
-      {/* Grid overlay */}
-      <div className="pointer-events-none absolute inset-0 opacity-[0.05]">
-        <div className="h-full w-full bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:60px_60px]" />
-      </div>
+              {/* Grid overlay */}
+              <div className="pointer-events-none absolute inset-0 opacity-[0.05]">
+                <div className="h-full w-full bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:60px_60px]" />
+              </div>
 
-      {/* Floating gradient orbs */}
-      <div className="absolute -top-24 -left-24 h-80 w-80 rounded-full bg-indigo-400/20 blur-3xl floating-orb" />
-      <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-emerald-400/20 blur-3xl floating-orb" />
+              {/* Floating gradient orbs */}
+              <div className="absolute -top-24 -left-24 h-80 w-80 rounded-full bg-indigo-400/20 blur-3xl floating-orb" />
+              <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-emerald-400/20 blur-3xl floating-orb" />
 
-      <div className="relative z-10 space-y-16">
+              <div className="relative z-10 space-y-16">
 
-        {/* ================= HEADER ================= */}
-        <div className="space-y-6 seller-title">
-          <p className="text-[11px] uppercase tracking-[0.4em] text-zinc-400">
-            Seller Workspace
-          </p>
+                {/* ================= HEADER ================= */}
+                <div className="space-y-6 seller-title">
+                  <p className="text-[11px] uppercase tracking-[0.4em] text-zinc-400">
+                    Seller Workspace
+                  </p>
 
-          <h1 className="text-4xl font-semibold tracking-tight text-zinc-900">
-            Manage Your Digital Assets
-            <span className="block bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400 bg-clip-text text-transparent">
-              Sell smarter. Grow faster.
-            </span>
-          </h1>
+                  <h1 className="text-4xl font-semibold tracking-tight text-zinc-900">
+                    Manage Your Digital Assets
+                    <span className="block bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400 bg-clip-text text-transparent">
+                      Sell smarter. Grow faster.
+                    </span>
+                  </h1>
 
-          <p className="max-w-xl text-sm text-zinc-600 leading-relaxed">
-            Create listings, manage stock, and build buyer trust —
-            all inside your premium OwnMarket dashboard.
-          </p>
-        </div>
+                  <p className="max-w-xl text-sm text-zinc-600 leading-relaxed">
+                    Create listings, manage stock, and build buyer trust —
+                    all inside your premium OwnMarket dashboard.
+                  </p>
+                </div>
 
-        {/* ================= STATS ================= */}
-        <div className="grid gap-6 md:grid-cols-3">
-          {[
-            { label: "Total Listings", value: products.length },
-            { label: "In Stock", value: products.filter(p => p.quantity > 0).length },
-            { label: "Out of Stock", value: products.filter(p => p.quantity === 0).length },
-          ].map((item, i) => (
-            <div
-              key={i}
-              className="seller-card rounded-3xl border border-white/40 bg-white/70 backdrop-blur-xl p-8 shadow-[0_20px_60px_rgba(15,23,42,0.06)] transition hover:-translate-y-1 hover:shadow-[0_30px_80px_rgba(15,23,42,0.12)]"
-            >
-              <p className="text-xs uppercase tracking-widest text-zinc-400">
-                {item.label}
-              </p>
-              <p className="mt-3 text-3xl font-semibold text-zinc-900">
-                {item.value}
-              </p>
+                {/* ================= STATS ================= */}
+                <div className="grid gap-6 md:grid-cols-3">
+                  {[
+                    { label: "Total Listings", value: products.length },
+                    { label: "In Stock", value: products.filter(p => p.quantity > 0).length },
+                    { label: "Out of Stock", value: products.filter(p => p.quantity === 0).length },
+                  ].map((item, i) => (
+                    <div
+                      key={i}
+                      className="seller-card rounded-3xl border border-white/40 bg-white/70 backdrop-blur-xl p-8 shadow-[0_20px_60px_rgba(15,23,42,0.06)] transition hover:-translate-y-1 hover:shadow-[0_30px_80px_rgba(15,23,42,0.12)]"
+                    >
+                      <p className="text-xs uppercase tracking-widest text-zinc-400">
+                        {item.label}
+                      </p>
+                      <p className="mt-3 text-3xl font-semibold text-zinc-900">
+                        {item.value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* ================= MAIN GRID ================= */}
+                <div className="grid gap-10 lg:grid-cols-3">
+
+                  {/* CREATE PRODUCT */}
+                  <div className="seller-card lg:col-span-2 rounded-3xl border border-white/40 bg-white/80 backdrop-blur-xl p-10 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
+                    <div className="mb-8 flex items-center justify-between">
+                      <h2 className="text-xl font-semibold text-zinc-900">
+                        Create New Listing
+                      </h2>
+                      <span className="rounded-full bg-emerald-50 px-4 py-1 text-xs font-medium text-emerald-600 ring-1 ring-emerald-200">
+                        Seller Tools
+                      </span>
+                    </div>
+
+                    <form
+                      onSubmit={handleCreateProduct}
+                      className="grid gap-6 md:grid-cols-2"
+                    >
+                      <div className="md:col-span-2 space-y-2">
+                        <label className="text-xs font-medium text-zinc-600">
+                          Product Name
+                        </label>
+                        <input
+                          required
+                          value={productForm.name}
+                          onChange={handleProductChange("name")}
+                          className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 outline-none"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-zinc-600">
+                          Price (USD)
+                        </label>
+                        <input
+                          required
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={productForm.price}
+                          onChange={handleProductChange("price")}
+                          className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 outline-none"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-zinc-600">
+                          Quantity
+                        </label>
+                        <input
+                          required
+                          type="number"
+                          min="0"
+                          value={productForm.quantity}
+                          onChange={handleProductChange("quantity")}
+                          className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 outline-none"
+                        />
+                      </div>
+
+                      <div className="md:col-span-2 space-y-2">
+                        <label className="text-xs font-medium text-zinc-600">
+                          Description
+                        </label>
+                        <textarea
+                          rows={4}
+                          value={productForm.description}
+                          onChange={handleProductChange("description")}
+                          className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 outline-none"
+                        />
+                      </div>
+
+                      <div className="md:col-span-2 space-y-2">
+                        <label className="text-xs font-medium text-zinc-600">
+                          Discord Channel (Optional)
+                        </label>
+                        <input
+                          type="url"
+                          value={productForm.discordChannel}
+                          onChange={handleProductChange("discordChannel")}
+                          className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 outline-none"
+                        />
+                      </div>
+
+                      <div className="md:col-span-2 flex justify-end">
+                        <Button
+                          type="submit"
+                          disabled={productsLoading}
+                          className="rounded-full px-8 py-2 text-sm shadow-lg"
+                        >
+                          {productsLoading ? "Saving..." : "Create Product"}
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+
+                  {/* DISCORD PROFILE */}
+                  <div className="seller-card rounded-3xl border border-white/40 bg-white/80 backdrop-blur-xl p-10 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
+                    <h2 className="mb-6 text-lg font-semibold text-zinc-900">
+                      Discord Profile
+                    </h2>
+
+                    {discordUsername ? (
+                      <div className="space-y-4">
+                        {discordId && (
+                          <img
+                            src={
+                              discordAvatar
+                                ? `https://cdn.discordapp.com/avatars/${discordId}/${discordAvatar}.${discordAvatar.startsWith("a_") ? "gif" : "png"}?size=256`
+                                : `https://cdn.discordapp.com/embed/avatars/${Number(discordId) % 5}.png`
+                            }
+                            alt="Discord avatar"
+                            className="h-16 w-16 rounded-full object-cover"
+                          />
+                        )}
+
+                        <p className="text-sm font-medium text-zinc-900">
+                          @{discordUsername}
+                        </p>
+                        <p className="text-xs text-zinc-500">
+                          Buyers can contact you directly.
+                        </p>
+                      </div>
+                    ) : (
+                      <Button
+                        className="rounded-full bg-indigo-600 hover:bg-indigo-500"
+                        asChild
+                      >
+                        <a href={`/api/auth/discord?userId=${encodeURIComponent(userId ?? "")}`}>
+                          Connect Discord
+                        </a>
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* ================= LISTINGS ================= */}
+                <div className="seller-card rounded-3xl border border-white/40 bg-white/80 backdrop-blur-xl p-10 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
+                  <div className="mb-8 flex items-center justify-between">
+                    <h2 className="text-xl font-semibold text-zinc-900">
+                      Your Listings
+                    </h2>
+                    <span className="rounded-full bg-zinc-100 px-4 py-1 text-xs text-zinc-600">
+                      {products.length} total
+                    </span>
+                  </div>
+
+                  {products.length === 0 ? (
+                    <p className="text-sm text-zinc-500">
+                      You haven’t listed anything yet.
+                    </p>
+                  ) : (
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                      {products.map((p) => (
+                        <div
+                          key={p.id}
+                          className="group relative rounded-3xl border border-zinc-200 bg-zinc-50 p-6 transition-all duration-300 hover:-translate-y-1 hover:bg-white hover:shadow-2xl"
+                        >
+                          {/* Header */}
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-zinc-900">
+                                {p.name}
+                              </p>
+                              <p className="mt-1 text-xs text-zinc-500">
+                                ${p.price.toFixed(2)} ·{" "}
+                                {p.quantity === 0
+                                  ? "Out of stock"
+                                  : `${p.quantity} in stock`}
+                              </p>
+                            </div>
+
+                            {/* Status Badge */}
+                            <span
+                              className={`rounded-full px-3 py-1 text-[10px] font-medium ${p.quantity === 0
+                                  ? "bg-red-50 text-red-600 ring-1 ring-red-200"
+                                  : "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200"
+                                }`}
+                            >
+                              {p.quantity === 0 ? "Out" : "Active"}
+                            </span>
+                          </div>
+
+                          {/* Divider */}
+                          <div className="my-5 h-px bg-zinc-200/70" />
+
+                          {/* Actions */}
+                          <div className="flex items-center justify-between">
+                            <Link
+                              href={`/products/${p.id}`}
+                              className="rounded-xl border border-zinc-200 bg-white px-4 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100"
+                            >
+                              View
+                            </Link>
+
+                            <div className="flex items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-xl text-zinc-500 hover:bg-zinc-100 hover:text-indigo-600"
+                                onClick={() => openEdit(p)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-xl text-zinc-500 hover:bg-zinc-100 hover:text-red-600"
+                                onClick={() => setDeleteConfirmId(p.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                    </div>
+                  )}
+                </div>
+
+              </div>
             </div>
-          ))}
-        </div>
-
-        {/* ================= MAIN GRID ================= */}
-        <div className="grid gap-10 lg:grid-cols-3">
-
-          {/* CREATE PRODUCT */}
-          <div className="seller-card lg:col-span-2 rounded-3xl border border-white/40 bg-white/80 backdrop-blur-xl p-10 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
-            <div className="mb-8 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-zinc-900">
-                Create New Listing
-              </h2>
-              <span className="rounded-full bg-emerald-50 px-4 py-1 text-xs font-medium text-emerald-600 ring-1 ring-emerald-200">
-                Seller Tools
-              </span>
-            </div>
-
-            <form
-              onSubmit={handleCreateProduct}
-              className="grid gap-6 md:grid-cols-2"
-            >
-              <div className="md:col-span-2 space-y-2">
-                <label className="text-xs font-medium text-zinc-600">
-                  Product Name
-                </label>
-                <input
-                  required
-                  value={productForm.name}
-                  onChange={handleProductChange("name")}
-                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 outline-none"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-zinc-600">
-                  Price (USD)
-                </label>
-                <input
-                  required
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={productForm.price}
-                  onChange={handleProductChange("price")}
-                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 outline-none"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-zinc-600">
-                  Quantity
-                </label>
-                <input
-                  required
-                  type="number"
-                  min="0"
-                  value={productForm.quantity}
-                  onChange={handleProductChange("quantity")}
-                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 outline-none"
-                />
-              </div>
-
-              <div className="md:col-span-2 space-y-2">
-                <label className="text-xs font-medium text-zinc-600">
-                  Description
-                </label>
-                <textarea
-                  rows={4}
-                  value={productForm.description}
-                  onChange={handleProductChange("description")}
-                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 outline-none"
-                />
-              </div>
-
-              <div className="md:col-span-2 space-y-2">
-                <label className="text-xs font-medium text-zinc-600">
-                  Discord Channel (Optional)
-                </label>
-                <input
-                  type="url"
-                  value={productForm.discordChannel}
-                  onChange={handleProductChange("discordChannel")}
-                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 outline-none"
-                />
-              </div>
-
-              <div className="md:col-span-2 flex justify-end">
-                <Button
-                  type="submit"
-                  disabled={productsLoading}
-                  className="rounded-full px-8 py-2 text-sm shadow-lg"
-                >
-                  {productsLoading ? "Saving..." : "Create Product"}
-                </Button>
-              </div>
-            </form>
-          </div>
-
-          {/* DISCORD PROFILE */}
-          <div className="seller-card rounded-3xl border border-white/40 bg-white/80 backdrop-blur-xl p-10 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
-            <h2 className="mb-6 text-lg font-semibold text-zinc-900">
-              Discord Profile
-            </h2>
-
-            {discordUsername ? (
-              <div className="space-y-4">
-                {discordId && (
-  <img
-    src={
-      discordAvatar
-        ? `https://cdn.discordapp.com/avatars/${discordId}/${discordAvatar}.${discordAvatar.startsWith("a_") ? "gif" : "png"}?size=256`
-        : `https://cdn.discordapp.com/embed/avatars/${Number(discordId) % 5}.png`
-    }
-    alt="Discord avatar"
-    className="h-16 w-16 rounded-full object-cover"
-  />
-)}
-
-                <p className="text-sm font-medium text-zinc-900">
-                  @{discordUsername}
-                </p>
-                <p className="text-xs text-zinc-500">
-                  Buyers can contact you directly.
-                </p>
-              </div>
-            ) : (
-              <Button
-                className="rounded-full bg-indigo-600 hover:bg-indigo-500"
-                asChild
-              >
-                <a href={`/api/auth/discord?userId=${encodeURIComponent(userId ?? "")}`}>
-                  Connect Discord
-                </a>
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* ================= LISTINGS ================= */}
-        <div className="seller-card rounded-3xl border border-white/40 bg-white/80 backdrop-blur-xl p-10 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
-          <div className="mb-8 flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-zinc-900">
-              Your Listings
-            </h2>
-            <span className="rounded-full bg-zinc-100 px-4 py-1 text-xs text-zinc-600">
-              {products.length} total
-            </span>
-          </div>
-
-          {products.length === 0 ? (
-            <p className="text-sm text-zinc-500">
-              You haven’t listed anything yet.
-            </p>
-          ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {products.map((p) => (
-  <div
-    key={p.id}
-    className="group relative rounded-3xl border border-zinc-200 bg-zinc-50 p-6 transition-all duration-300 hover:-translate-y-1 hover:bg-white hover:shadow-2xl"
-  >
-    {/* Header */}
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0">
-        <p className="truncate text-sm font-semibold text-zinc-900">
-          {p.name}
-        </p>
-        <p className="mt-1 text-xs text-zinc-500">
-          ${p.price.toFixed(2)} ·{" "}
-          {p.quantity === 0
-            ? "Out of stock"
-            : `${p.quantity} in stock`}
-        </p>
-      </div>
-
-      {/* Status Badge */}
-      <span
-        className={`rounded-full px-3 py-1 text-[10px] font-medium ${
-          p.quantity === 0
-            ? "bg-red-50 text-red-600 ring-1 ring-red-200"
-            : "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200"
-        }`}
-      >
-        {p.quantity === 0 ? "Out" : "Active"}
-      </span>
-    </div>
-
-    {/* Divider */}
-    <div className="my-5 h-px bg-zinc-200/70" />
-
-    {/* Actions */}
-    <div className="flex items-center justify-between">
-      <Link
-        href={`/products/${p.id}`}
-        className="rounded-xl border border-zinc-200 bg-white px-4 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100"
-      >
-        View
-      </Link>
-
-      <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 rounded-xl text-zinc-500 hover:bg-zinc-100 hover:text-indigo-600"
-          onClick={() => openEdit(p)}
-        >
-          <Pencil className="h-4 w-4" />
-        </Button>
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 rounded-xl text-zinc-500 hover:bg-zinc-100 hover:text-red-600"
-          onClick={() => setDeleteConfirmId(p.id)}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
-  </div>
-))}
-
-            </div>
-          )}
-        </div>
-
-      </div>
-    </div>
-  </>
-)}
+          </>
+        )}
 
 
 
