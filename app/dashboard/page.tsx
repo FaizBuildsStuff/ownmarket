@@ -16,6 +16,8 @@ import {
   timeoutUserAction,
   unbanUserAction
 } from "@/app/actions";
+import { fetchUserConversationsAction } from "@/app/chat-actions";
+import { ChatSidebar } from "@/components/ChatSidebar";
 import {
   ShieldCheck,
   ShoppingBag,
@@ -83,6 +85,15 @@ export default function DashboardPage() {
   const [discordAvatar, setDiscordAvatar] = useState<string | null>(null);
 
   const [productsLoading, setProductsLoading] = useState(false);
+
+  // Chat Inbox States
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [inboxLoading, setInboxLoading] = useState(false);
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [activeChatUser, setActiveChatUser] = useState<any>(null);
+  const [activeChatProduct, setActiveChatProduct] = useState<string | null>(null);
+  const [activeChatStatus, setActiveChatStatus] = useState<any>("open");
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -215,6 +226,33 @@ export default function DashboardPage() {
   useEffect(() => {
     void fetchProducts();
   }, [userId, role]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    let mounted = true;
+    const fetchChatInbox = async () => {
+      try {
+        if (mounted && conversations.length === 0) setInboxLoading(true);
+        const data = await fetchUserConversationsAction();
+        if (mounted) {
+          setConversations(data);
+          setInboxLoading(false);
+        }
+      } catch (err) {
+        console.error(err);
+        if (mounted) setInboxLoading(false);
+      }
+    };
+
+    fetchChatInbox();
+    const interval = setInterval(fetchChatInbox, 5000); // refresh inbox every 5s
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [userId]);
 
   useEffect(() => {
     if (role === "admin") {
@@ -639,6 +677,86 @@ export default function DashboardPage() {
                       </p>
                     </div>
                   ))}
+                </div>
+
+                {/* ================= INBOX ================= */}
+                <div className="seller-card rounded-3xl border border-white/40 bg-white/80 backdrop-blur-xl p-10 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
+                  <div className="mb-8 flex items-center justify-between">
+                    <h2 className="text-xl font-semibold text-zinc-900 flex items-center gap-2">
+                      <MessageCircleMore className="h-5 w-5 text-indigo-500" />
+                      Inbox
+                    </h2>
+                    <span className="rounded-full bg-indigo-50 px-4 py-1 text-xs font-medium text-indigo-600 ring-1 ring-indigo-200">
+                      {conversations.filter(c => c.unreadCount > 0).length} Unread Updates
+                    </span>
+                  </div>
+
+                  {inboxLoading ? (
+                    <p className="text-sm text-zinc-500">Loading inbox...</p>
+                  ) : conversations.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/50 p-8 text-center">
+                      <MessageCircle className="mx-auto mb-3 h-8 w-8 text-zinc-300" />
+                      <p className="text-sm font-medium text-zinc-600">No active conversations</p>
+                      <p className="mt-1 text-xs text-zinc-400">When buyers start a chat or an order, it will appear here.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {conversations.map((conv) => (
+                        <div
+                          key={conv.id}
+                          onClick={() => {
+                            setActiveChatId(conv.id);
+                            setActiveChatUser(conv.otherUser);
+                            setActiveChatProduct(conv.productName);
+                            setActiveChatStatus(conv.status);
+                            setIsChatOpen(true);
+                          }}
+                          className="group flex cursor-pointer items-center justify-between rounded-2xl border border-zinc-100 bg-white p-4 transition-all hover:border-indigo-200 hover:shadow-md"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="relative">
+                              {conv.otherUser?.discordAvatar && conv.otherUser?.discordId ? (
+                                <img
+                                  src={`https://cdn.discordapp.com/avatars/${conv.otherUser.discordId}/${conv.otherUser.discordAvatar}.png`}
+                                  className="h-10 w-10 rounded-full bg-zinc-100 object-cover"
+                                  alt=""
+                                />
+                              ) : (
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-zinc-400">
+                                  <UserCircle2 className="h-5 w-5" />
+                                </div>
+                              )}
+                              {conv.unreadCount > 0 && (
+                                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-white bg-indigo-500 text-[9px] font-bold text-white">
+                                  {conv.unreadCount}
+                                </span>
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-zinc-900 group-hover:text-indigo-600 transition-colors">
+                                {conv.otherUser?.username || "Unknown Buyer"}
+                              </p>
+                              <p className="text-xs font-medium text-zinc-500">
+                                {conv.productName ? `Re: ${conv.productName}` : "Order inquiry"}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="text-right">
+                            {conv.status === "completed" ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-600">
+                                <Award className="h-3 w-3" /> Paid
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-600">
+                                Pending
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* ================= MAIN GRID ================= */}
@@ -1168,6 +1286,21 @@ export default function DashboardPage() {
           </motion.div>
         )}
       </section>
+
+      {/* OVERLAYS */}
+      <ChatSidebar
+        isOpen={isChatOpen}
+        onClose={() => {
+          setIsChatOpen(false);
+          setActiveChatId(null);
+        }}
+        conversationId={activeChatId}
+        currentUserId={userId}
+        otherUser={activeChatUser}
+        productName={activeChatProduct}
+        status={activeChatStatus}
+        isBuyer={role === "buyer"}
+      />
 
       {/* Edit product dialog */}
       <Dialog open={!!editingId} onOpenChange={(o) => !o && setEditingId(null)}>

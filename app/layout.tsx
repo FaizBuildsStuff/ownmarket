@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import type React from "react";
+import React, { Suspense } from "react";
 import { Roboto_Condensed } from "next/font/google";
 import { CartProvider } from "@/context/CartContext";
 import Header from "@/components/Header";
@@ -124,7 +124,9 @@ export default function RootLayout({
           <div className="flex min-h-screen flex-col">
             <header className="bg-white">
               <div className="mx-auto w-full max-w-6xl px-6 py-4 lg:px-10 lg:py-5">
-                <Header />
+                <Suspense fallback={<div className="h-16 w-full animate-pulse bg-zinc-100 rounded-xl"></div>}>
+                  <Header />
+                </Suspense>
               </div>
             </header>
             <main className="flex-1">{children}</main>

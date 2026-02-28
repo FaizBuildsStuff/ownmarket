@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { db } from "@/lib/db";
 import { users } from "@/lib/schema";
 import { eq } from "drizzle-orm";
+import { createSession } from "@/lib/auth";
 const NEXT_PUBLIC_APP_URL =
   process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
@@ -96,15 +97,53 @@ export async function GET(request: NextRequest) {
   };
 
   try {
-    await db
-      .update(users)
-      .set({
-        discordId: discordUser.id,
-        discordUsername: discordUser.username,
-        discordAvatar: discordUser.avatar,
-      })
-      .where(eq(users.id, userId));
+    if (userId === "pending") {
+      // Check if user already exists
+      const existingUser = await db
+        .select()
+        .from(users)
+        .where(eq(users.discordId, discordUser.id))
+        .limit(1);
+
+      if (existingUser.length > 0) {
+        // User exists, log them in
+        const user = existingUser[0];
+        await createSession({ id: user.id, role: user.role });
+        return NextResponse.redirect(
+          new URL("/dashboard", NEXT_PUBLIC_APP_URL),
+        );
+      } else {
+        // Create new user
+        const tempEmail = `pending_${discordUser.id}@ownmarket.local`;
+        const [newUser] = await db
+          .insert(users)
+          .values({
+            email: tempEmail,
+            discordId: discordUser.id,
+            discordUsername: discordUser.username,
+            discordAvatar: discordUser.avatar,
+            username: discordUser.username,
+          })
+          .returning();
+
+        await createSession({ id: newUser.id, role: newUser.role });
+        return NextResponse.redirect(
+          new URL("/?setup=true", NEXT_PUBLIC_APP_URL),
+        );
+      }
+    } else {
+      // Update existing user from a dashboard connect action
+      await db
+        .update(users)
+        .set({
+          discordId: discordUser.id,
+          discordUsername: discordUser.username,
+          discordAvatar: discordUser.avatar,
+        })
+        .where(eq(users.id, userId));
+    }
   } catch (error) {
+    console.error("Discord callback db error:", error);
     return NextResponse.redirect(
       new URL("/dashboard?error=db_error", NEXT_PUBLIC_APP_URL),
     );

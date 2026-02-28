@@ -1,6 +1,9 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
+import { db } from "@/lib/db";
+import { users } from "@/lib/schema";
+import { eq } from "drizzle-orm";
 
 const secretKey = process.env.JWT_SECRET || "super-secret-key-for-development";
 const key = new TextEncoder().encode(secretKey);
@@ -47,8 +50,28 @@ export async function verifySession() {
 }
 
 export async function getSession() {
-  const user = await verifySession();
-  return user;
+  const sessionPayload = await verifySession();
+  if (!sessionPayload || !sessionPayload.id) return null;
+
+  try {
+    const [user] = await db
+      .select({
+        id: users.id,
+        role: users.role,
+        email: users.email,
+        username: users.username,
+      })
+      .from(users)
+      .where(eq(users.id, sessionPayload.id as string));
+
+    if (user) {
+      return { ...sessionPayload, ...user };
+    }
+  } catch (error) {
+    console.error("Failed to fetch fresh session from DB:", error);
+  }
+
+  return sessionPayload;
 }
 
 export async function destroySession() {

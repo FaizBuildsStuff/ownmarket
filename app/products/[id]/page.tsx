@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { fetchProductDetailsAction } from "@/app/actions";
+import { getOrCreateConversationAction } from "@/app/chat-actions";
+import { ChatSidebar } from "@/components/ChatSidebar";
 import {
   ArrowLeft,
   ShieldCheck,
@@ -35,6 +37,12 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [sellerProfile, setSellerProfile] = useState<any>(null);
 
+  // Chat States
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [chatStarting, setChatStarting] = useState(false);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -55,6 +63,16 @@ export default function ProductDetailPage() {
           description: prod.description,
           badge: prod.badge,
         });
+
+        // Also fetch the current user to know who the buyer is
+        fetch('/api/auth/me')
+          .then(res => res.json())
+          .then(userData => {
+            if (userData?.user?.id) {
+              setCurrentUserId(userData.user.id);
+            }
+          })
+          .catch(() => { });
 
         if (seller) {
           setSellerProfile({
@@ -82,6 +100,30 @@ export default function ProductDetailPage() {
   const avatarUrl = sellerProfile?.discord_id && sellerProfile?.discord_avatar
     ? `https://cdn.discordapp.com/avatars/${sellerProfile.discord_id}/${sellerProfile.discord_avatar}.png`
     : null;
+
+  const handleOpenChat = async () => {
+    if (!currentUserId) {
+      alert("Please log in to chat with the seller.");
+      return;
+    }
+
+    if (currentUserId === product.seller_id) {
+      alert("You cannot chat with yourself on your own product.");
+      return;
+    }
+
+    setChatStarting(true);
+    try {
+      const conv = await getOrCreateConversationAction(product.seller_id, product.id);
+      setConversationId(conv.id);
+      setIsChatOpen(true);
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Failed to start chat.");
+    } finally {
+      setChatStarting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white text-zinc-900">
@@ -150,10 +192,11 @@ export default function ProductDetailPage() {
                 <Button
                   variant="outline"
                   className="w-full rounded-2xl py-7 text-sm font-bold uppercase tracking-widest border-zinc-200"
-                  onClick={() => router.push(`/messages?seller=${product.seller_id}`)}
+                  onClick={handleOpenChat}
+                  disabled={chatStarting}
                 >
                   <MessageSquare className="mr-2 h-4 w-4" />
-                  Chat with Seller
+                  {chatStarting ? "Starting..." : "Chat with Seller"}
                 </Button>
               </div>
 
@@ -199,6 +242,23 @@ export default function ProductDetailPage() {
 
         </div>
       </div>
+
+      <ChatSidebar
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        conversationId={conversationId}
+        currentUserId={currentUserId}
+        otherUser={{
+          id: product.seller_id,
+          username: sellerProfile?.username,
+          discordUsername: sellerProfile?.discord_username,
+          discordAvatar: sellerProfile?.discord_avatar,
+          discordId: sellerProfile?.discord_id,
+        }}
+        status="open"
+        productName={product.name}
+        isBuyer={true}
+      />
     </div>
   );
 }
