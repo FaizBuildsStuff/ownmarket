@@ -3,7 +3,19 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { supabase } from "@/lib/supabaseClient";
+import {
+  fetchUserProducts,
+  fetchAllProductsAction,
+  fetchAllUsersAction,
+  createProductAction,
+  updateProductAction,
+  deleteProductAction,
+  setProductBadgeAction,
+  setUserBadgeAction,
+  banUserAction,
+  timeoutUserAction,
+  unbanUserAction
+} from "@/app/actions";
 import {
   ShieldCheck,
   ShoppingBag,
@@ -39,22 +51,22 @@ type UserRole = "admin" | "buyer" | "seller" | null;
 type ProductRow = {
   id: string;
   name: string;
-  price: number;
+  price: string | number;
   quantity: number;
   description: string | null;
-  discord_channel_link: string | null;
+  discordChannelLink: string | null;
   badge?: string | null;
-  seller_id?: string;
+  sellerId?: string;
 };
 
 type ProfileRow = {
   id: string;
   username: string | null;
-  discord_username: string | null;
+  discordUsername: string | null;
   role: string;
   badge: string | null;
   banned: boolean;
-  banned_until: string | null;
+  bannedUntil: string | null;
 };
 
 
@@ -131,28 +143,31 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const { data: authData, error: authError } = await supabase.auth.getUser();
+      try {
+        const res = await fetch('/api/auth/me');
+        if (!res.ok) {
+          router.push("/");
+          return;
+        }
 
-      if (authError || !authData.user) {
+        const { user } = await res.json();
+        if (!user) {
+          router.push("/");
+          return;
+        }
+
+        setUserId(user.id);
+        setEmail(user.email);
+        setRole(user.role);
+        setUsername(user.username);
+        setDiscordId(user.discordId);
+        setDiscordUsername(user.discordUsername);
+        setDiscordAvatar(user.discordAvatar);
+      } catch (err) {
         router.push("/");
-        return;
+      } finally {
+        setLoading(false);
       }
-
-      setUserId(authData.user.id);
-      setEmail(authData.user.email ?? null);
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role, username, discord_id, discord_username, discord_avatar")
-        .eq("id", authData.user.id)
-        .maybeSingle();
-
-      setRole((profile?.role as UserRole) ?? null);
-      setUsername(profile?.username ?? null);
-      setDiscordId((profile as any)?.discord_id ?? null);
-      setDiscordUsername((profile as any)?.discord_username ?? null);
-      setDiscordAvatar((profile as any)?.discord_avatar ?? null);
-      setLoading(false);
     };
 
     void fetchProfile();
@@ -161,46 +176,40 @@ export default function DashboardPage() {
   const fetchProducts = async () => {
     if (!userId || role !== "seller") return;
     setProductsLoading(true);
-    const { data } = await supabase
-      .from("products")
-      .select("id, name, price, quantity, description, discord_channel_link, badge")
-      .eq("seller_id", userId)
-      .order("created_at", { ascending: false });
-
-    setProducts((data as any) ?? []);
-    setProductsLoading(false);
+    try {
+      const data = await fetchUserProducts();
+      setProducts(data as any[]);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setProductsLoading(false);
+    }
   };
 
   const fetchAllProducts = async () => {
     setAdminProductsLoading(true);
     setAdminError(null);
-    const { data, error } = await supabase
-      .from("products")
-      .select("id, name, price, quantity, description, discord_channel_link, badge, seller_id")
-      .order("created_at", { ascending: false });
-    if (error) {
+    try {
+      const data = await fetchAllProductsAction();
+      setAllProducts(data as unknown as ProductRow[]);
+    } catch (error: any) {
       setAdminError(error.message);
+    } finally {
       setAdminProductsLoading(false);
-      return;
     }
-    setAllProducts((data as ProductRow[]) ?? []);
-    setAdminProductsLoading(false);
   };
 
   const fetchAllUsers = async () => {
     setAdminUsersLoading(true);
     setAdminError(null);
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, username, discord_username, role, badge, banned, banned_until")
-      .order("created_at", { ascending: false });
-    if (error) {
+    try {
+      const data = await fetchAllUsersAction();
+      setAllUsers(data as unknown as ProfileRow[]);
+    } catch (error: any) {
       setAdminError(error.message);
+    } finally {
       setAdminUsersLoading(false);
-      return;
     }
-    setAllUsers((data as ProfileRow[]) ?? []);
-    setAdminUsersLoading(false);
   };
 
   useEffect(() => {
@@ -221,7 +230,7 @@ export default function DashboardPage() {
       price: String(p.price),
       quantity: String(p.quantity),
       description: p.description ?? "",
-      discordChannel: p.discord_channel_link ?? "",
+      discordChannel: p.discordChannelLink ?? "",
     });
   };
 
@@ -232,18 +241,15 @@ export default function DashboardPage() {
     try {
       const price = parseFloat(editForm.price);
       const quantity = parseInt(editForm.quantity ?? "0", 10);
-      const { error } = await supabase
-        .from("products")
-        .update({
-          name: editForm.name,
-          price: Number.isNaN(price) ? 0 : price,
-          quantity: Number.isNaN(quantity) ? 0 : quantity,
-          description: editForm.description || null,
-          discord_channel_link: editForm.discordChannel || null,
-        })
-        .eq("id", editingId);
 
-      if (error) throw error;
+      await updateProductAction(editingId, {
+        name: editForm.name,
+        price: Number.isNaN(price) ? 0 : price,
+        quantity: Number.isNaN(quantity) ? 0 : quantity,
+        description: editForm.description || undefined,
+        discordChannel: editForm.discordChannel || undefined,
+      });
+
       setEditingId(null);
       if (role === "admin") await fetchAllProducts();
       else await fetchProducts();
@@ -257,8 +263,7 @@ export default function DashboardPage() {
   const handleDeleteProduct = async (id: string) => {
     setProductsLoading(true);
     try {
-      const { error } = await supabase.from("products").delete().eq("id", id);
-      if (error) throw error;
+      await deleteProductAction(id);
       setDeleteConfirmId(null);
       if (role === "admin") await fetchAllProducts();
       else await fetchProducts();
@@ -285,20 +290,13 @@ export default function DashboardPage() {
       const price = parseFloat(productForm.price);
       const quantity = parseInt(productForm.quantity || "1", 10);
 
-      const { data, error } = await supabase
-        .from("products")
-        .insert({
-          seller_id: userId,
-          name: productForm.name,
-          price,
-          quantity: Number.isNaN(quantity) ? 0 : Math.max(0, quantity),
-          description: productForm.description || null,
-          discord_channel_link: productForm.discordChannel || null,
-        })
-        .select("id, name, price, quantity, description, discord_channel_link")
-        .single();
-
-      if (error) throw error;
+      const data = await createProductAction({
+        name: productForm.name,
+        price: Number.isNaN(price) ? 0 : price,
+        quantity: Number.isNaN(quantity) ? 0 : Math.max(0, quantity),
+        description: productForm.description || undefined,
+        discordChannel: productForm.discordChannel || undefined,
+      });
 
       setProducts((prev) => (data ? [data as any, ...prev] : prev));
       setProductForm({
@@ -320,11 +318,7 @@ export default function DashboardPage() {
     setAdminError(null);
     setAdminProductsLoading(true);
     try {
-      const { error } = await supabase
-        .from("products")
-        .update({ badge: badgeInput.trim() || null })
-        .eq("id", badgeTarget.id);
-      if (error) throw error;
+      await setProductBadgeAction(badgeTarget.id, badgeInput.trim() || null);
       setBadgeTarget(null);
       setBadgeInput("");
       await fetchAllProducts();
@@ -340,11 +334,7 @@ export default function DashboardPage() {
     setAdminError(null);
     setAdminUsersLoading(true);
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ badge: badgeInput.trim() || null })
-        .eq("id", badgeTarget.id);
-      if (error) throw error;
+      await setUserBadgeAction(badgeTarget.id, badgeInput.trim() || null);
       setBadgeTarget(null);
       setBadgeInput("");
       await fetchAllUsers();
@@ -359,11 +349,7 @@ export default function DashboardPage() {
     setAdminError(null);
     setAdminUsersLoading(true);
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ banned: true, banned_until: null })
-        .eq("id", targetUserId);
-      if (error) throw error;
+      await banUserAction(targetUserId);
       setBanConfirmUserId(null);
       await fetchAllUsers();
     } catch (err: any) {
@@ -383,13 +369,7 @@ export default function DashboardPage() {
     setAdminError(null);
     setAdminUsersLoading(true);
     try {
-      const until = new Date();
-      until.setDate(until.getDate() + days);
-      const { error } = await supabase
-        .from("profiles")
-        .update({ banned: false, banned_until: until.toISOString() })
-        .eq("id", timeoutTarget.userId);
-      if (error) throw error;
+      await timeoutUserAction(timeoutTarget.userId, days);
       setTimeoutTarget(null);
       setTimeoutDays("1");
       await fetchAllUsers();
@@ -404,11 +384,7 @@ export default function DashboardPage() {
     setAdminError(null);
     setAdminUsersLoading(true);
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ banned: false, banned_until: null })
-        .eq("id", targetUserId);
-      if (error) throw error;
+      await unbanUserAction(targetUserId);
       await fetchAllUsers();
     } catch (err: any) {
       setAdminError(err?.message ?? "Failed to unban");
@@ -829,7 +805,7 @@ export default function DashboardPage() {
                                 {p.name}
                               </p>
                               <p className="mt-1 text-xs text-zinc-500">
-                                ${p.price.toFixed(2)} ·{" "}
+                                ${Number(p.price).toFixed(2)} ·{" "}
                                 {p.quantity === 0
                                   ? "Out of stock"
                                   : `${p.quantity} in stock`}
@@ -839,8 +815,8 @@ export default function DashboardPage() {
                             {/* Status Badge */}
                             <span
                               className={`rounded-full px-3 py-1 text-[10px] font-medium ${p.quantity === 0
-                                  ? "bg-red-50 text-red-600 ring-1 ring-red-200"
-                                  : "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200"
+                                ? "bg-red-50 text-red-600 ring-1 ring-red-200"
+                                : "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200"
                                 }`}
                             >
                               {p.quantity === 0 ? "Out" : "Active"}
@@ -952,11 +928,11 @@ export default function DashboardPage() {
                       </thead>
                       <tbody>
                         {allProducts.map((p) => {
-                          const seller = allUsers.find((u) => u.id === p.seller_id);
+                          const seller = allUsers.find((u) => u.id === p.sellerId);
                           const sellerName =
                             seller?.username ||
-                            seller?.discord_username ||
-                            p.seller_id?.slice(0, 8) ||
+                            seller?.discordUsername ||
+                            p.sellerId?.slice(0, 8) ||
                             "—";
 
                           return (
@@ -971,7 +947,7 @@ export default function DashboardPage() {
                               </td>
 
                               <td className="px-4 py-3 text-zinc-600">
-                                <Link href={`/users/${p.seller_id}`} className="hover:underline">
+                                <Link href={`/users/${p.sellerId}`} className="hover:underline">
                                   {sellerName}
                                 </Link>
                               </td>
@@ -1087,14 +1063,14 @@ export default function DashboardPage() {
                         {allUsers.map((u) => {
                           const displayName =
                             u.username ||
-                            u.discord_username ||
+                            u.discordUsername ||
                             u.id.slice(0, 8) ||
                             "—";
 
                           const isBanned =
                             u.banned ||
-                            (u.banned_until &&
-                              new Date(u.banned_until) > new Date());
+                            (u.bannedUntil &&
+                              new Date(u.bannedUntil) > new Date());
 
                           const status = isBanned
                             ? "Restricted"

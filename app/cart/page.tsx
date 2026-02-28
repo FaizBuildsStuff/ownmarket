@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { supabase } from "@/lib/supabaseClient";
+import { fetchCartProductsAction } from "@/app/actions";
 import { useCart } from "@/context/CartContext";
 import {
   ShoppingCart,
@@ -50,25 +50,37 @@ export default function CartPage() {
     }
 
     const fetchData = async () => {
-      const { data: productData } = await supabase
-        .from("products")
-        .select("id, name, price, quantity, seller_id")
-        .in("id", productIds);
+      try {
+        const cartProductsData = await fetchCartProductsAction(productIds);
 
-      const prods = (productData as CartProduct[]) ?? [];
-      setProducts(prods);
+        const prods: CartProduct[] = cartProductsData.map((p) => ({
+          id: p.id,
+          name: p.name,
+          price: Number(p.price),
+          quantity: p.quantity,
+          seller_id: p.sellerId,
+        }));
 
-      const sellerIds = [...new Set(prods.map((p) => p.seller_id).filter(Boolean))];
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("id, username, discord_username, discord_id")
-        .in("id", sellerIds);
+        setProducts(prods);
 
-      const map = new Map<string, SellerProfile>();
-      (profileData as SellerProfile[])?.forEach((p) => map.set(p.id, p));
+        const map = new Map<string, SellerProfile>();
+        cartProductsData.forEach((p) => {
+          if (p.sellerId && !map.has(p.sellerId)) {
+            map.set(p.sellerId, {
+              id: p.sellerId,
+              username: p.sellerUsername,
+              discord_username: p.sellerDiscordUsername,
+              discord_id: p.sellerDiscordId,
+            });
+          }
+        });
 
-      setProfiles(map);
-      setLoading(false);
+        setProfiles(map);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
     };
 
     void fetchData();
@@ -110,7 +122,7 @@ export default function CartPage() {
   return (
     <div ref={containerRef} className="min-h-screen bg-[#FAFAFA] text-zinc-900">
       <div className="mx-auto max-w-7xl px-6 py-12 lg:px-10">
-        
+
         {/* HEADER */}
         <header className="mb-12 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
@@ -137,7 +149,7 @@ export default function CartPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-12 lg:grid-cols-[1fr_380px]">
-            
+
             {/* ITEMS LIST */}
             <div className="space-y-6">
               {rows.map((row) => {
@@ -145,7 +157,7 @@ export default function CartPage() {
                 return (
                   <div key={row.id} className="cart-item group relative overflow-hidden rounded-3xl border border-zinc-100 bg-white p-6 shadow-sm transition-all hover:shadow-md">
                     <div className="flex flex-col gap-6 md:flex-row md:items-center">
-                      
+
                       {/* PRODUCT ICON/IMAGE PLACEHOLDER */}
                       <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-zinc-50 text-zinc-300 transition-colors group-hover:bg-zinc-100 group-hover:text-zinc-400">
                         <ShoppingCart className="h-8 w-8" />
@@ -157,7 +169,7 @@ export default function CartPage() {
                           <h3 className="text-lg font-bold tracking-tight">{row.name}</h3>
                           <span className="text-lg font-bold">${(row.price * row.cartQty).toLocaleString()}</span>
                         </div>
-                        
+
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-medium text-zinc-400">
                           <div className="flex items-center gap-1">
                             <User className="h-3 w-3" />
@@ -171,22 +183,22 @@ export default function CartPage() {
                       {/* ACTIONS */}
                       <div className="flex items-center justify-between border-t border-zinc-50 pt-4 md:border-none md:pt-0 gap-4">
                         <div className="flex items-center gap-3 rounded-2xl border border-zinc-100 bg-zinc-50/50 p-1">
-                          <button 
+                          <button
                             onClick={() => updateQuantity(row.id, row.cartQty - 1, row.quantity)}
                             className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-zinc-500 shadow-sm transition-hover hover:text-black"
                           >
                             <Minus className="h-3 w-3" />
                           </button>
                           <span className="w-6 text-center text-sm font-bold">{row.cartQty}</span>
-                          <button 
+                          <button
                             onClick={() => updateQuantity(row.id, row.cartQty + 1, row.quantity)}
                             className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-zinc-500 shadow-sm transition-hover hover:text-black"
                           >
                             <Plus className="h-3 w-3" />
                           </button>
                         </div>
-                        
-                        <button 
+
+                        <button
                           onClick={() => removeItem(row.id)}
                           className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-300 hover:bg-red-50 hover:text-red-500 transition-all"
                         >
@@ -203,7 +215,7 @@ export default function CartPage() {
             <aside className="relative">
               <div className="summary-card sticky top-12 space-y-8 rounded-[2rem] border border-zinc-200 bg-white p-8 shadow-sm">
                 <h3 className="text-xl font-bold">Order Summary</h3>
-                
+
                 <div className="space-y-4">
                   <div className="flex justify-between text-sm text-zinc-500">
                     <span>Subtotal</span>

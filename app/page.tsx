@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion, useMotionTemplate, useMotionValue } from "framer-motion";
 import { ArrowUpRight, CheckCircle2, ShieldCheck } from "lucide-react";
 import gsap from "gsap";
-import { supabase } from "@/lib/supabaseClient";
+import { fetchRecentProductsAction } from "@/app/actions";
 import Link from "next/link";
 import IntegrationsSection from "@/components/integrations-3";
 import FAQsTwo from "@/components/faqs-2";
@@ -108,55 +108,33 @@ export default function Home() {
 
   useEffect(() => {
     const fetchProducts = async () => {
-      const { data } = await supabase
-        .from("products")
-        .select(
-          "id, seller_id, name, price, quantity, description, discord_channel_link"
-        )
-        .order("created_at", { ascending: false })
-        .limit(6);
+      try {
+        const data = await fetchRecentProductsAction(6);
 
-      const baseProducts = ((data as any) ?? []) as ProductCard[];
+        if (!data || data.length === 0) {
+          setProducts([]);
+          setProductsLoading(false);
+          return;
+        }
 
-      if (baseProducts.length === 0) {
-        setProducts([]);
+        const enriched = data.map((p) => ({
+          id: p.id,
+          seller_id: p.sellerId,
+          name: p.name,
+          price: Number(p.price),
+          quantity: p.quantity,
+          description: p.description,
+          discord_channel_link: p.discordChannelLink,
+          seller_username: p.sellerUsername ?? null,
+          seller_created_at: p.sellerCreatedAt ? p.sellerCreatedAt.toISOString() : null,
+        }));
+
+        setProducts(enriched);
+      } catch (err) {
+        console.error(err);
+      } finally {
         setProductsLoading(false);
-        return;
       }
-
-      const sellerIds = Array.from(
-        new Set(baseProducts.map((p) => p.seller_id).filter(Boolean))
-      );
-
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("id, username, created_at")
-        .in("id", sellerIds);
-
-      const profileMap = new Map<
-        string,
-        { username: string | null; created_at: string | null }
-      >();
-
-      (profileData as any)?.forEach(
-        (p: { id: string; username: string | null; created_at: string | null }) =>
-          profileMap.set(p.id, {
-            username: p.username,
-            created_at: p.created_at,
-          })
-      );
-
-      const enriched = baseProducts.map((p) => {
-        const prof = profileMap.get(p.seller_id);
-        return {
-          ...p,
-          seller_username: prof?.username ?? null,
-          seller_created_at: prof?.created_at ?? null,
-        };
-      });
-
-      setProducts(enriched);
-      setProductsLoading(false);
     };
 
     void fetchProducts();
@@ -174,7 +152,7 @@ export default function Home() {
       onPointerMove={handlePointerMove}
     >
       <main className="relative z-10 w-full max-w-6xl px-6 py-8 mx-auto lg:px-10 lg:py-12">
-        
+
         {/* ADD THE NEW COMPONENT HERE */}
         <HeroStats />
 
@@ -215,72 +193,72 @@ export default function Home() {
                   key={p.id}
                   className="group relative overflow-hidden rounded-3xl border border-zinc-200/60 bg-white/70 p-6 backdrop-blur-xl transition duration-500 hover:-translate-y-2 hover:border-indigo-300/60 hover:shadow-[0_30px_80px_rgba(15,23,42,0.12)]"
                 >
-                <Link href={`/products/${p.id}`} className="block">
-                  {/* Glow Border Effect */}
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition duration-500 pointer-events-none">
-                    <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-indigo-500/10 via-sky-400/10 to-emerald-400/10 blur-2xl" />
-                  </div>
-
-                  {/* Content */}
-                  <div className="relative z-10 space-y-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <h3 className="text-lg font-semibold tracking-tight text-zinc-900 group-hover:text-indigo-600 transition">
-                        {p.name}
-                      </h3>
-
-                      <span className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-semibold text-white">
-                        ${p.price.toFixed(2)}
-                      </span>
+                  <Link href={`/products/${p.id}`} className="block">
+                    {/* Glow Border Effect */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition duration-500 pointer-events-none">
+                      <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-indigo-500/10 via-sky-400/10 to-emerald-400/10 blur-2xl" />
                     </div>
 
-                    <p className="line-clamp-2 text-sm italic text-zinc-500">
-                      {p.description ||
-                        "Premium Discord perk listed by a verified seller."}
-                    </p>
+                    {/* Content */}
+                    <div className="relative z-10 space-y-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <h3 className="text-lg font-semibold tracking-tight text-zinc-900 group-hover:text-indigo-600 transition">
+                          {p.name}
+                        </h3>
 
-                    <div className="flex items-center justify-between text-xs text-zinc-400">
-                      <span>{p.quantity} in stock</span>
-
-                      {p.discord_channel_link && (
-                        <span className="rounded-full bg-indigo-50 px-3 py-1 text-[10px] font-medium text-indigo-600">
-                          Discord channel
+                        <span className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-semibold text-white">
+                          ${p.price.toFixed(2)}
                         </span>
-                      )}
-                    </div>
+                      </div>
 
-                    <div className="pt-3 border-t border-zinc-200/60 flex items-center justify-between text-xs">
-                      <span className="italic text-zinc-400">
-                        by{" "}
-                        <span className="font-medium text-zinc-600 not-italic">
-                          {p.seller_username || "unknown seller"}
+                      <p className="line-clamp-2 text-sm italic text-zinc-500">
+                        {p.description ||
+                          "Premium Discord perk listed by a verified seller."}
+                      </p>
+
+                      <div className="flex items-center justify-between text-xs text-zinc-400">
+                        <span>{p.quantity} in stock</span>
+
+                        {p.discord_channel_link && (
+                          <span className="rounded-full bg-indigo-50 px-3 py-1 text-[10px] font-medium text-indigo-600">
+                            Discord channel
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="pt-3 border-t border-zinc-200/60 flex items-center justify-between text-xs">
+                        <span className="italic text-zinc-400">
+                          by{" "}
+                          <span className="font-medium text-zinc-600 not-italic">
+                            {p.seller_username || "unknown seller"}
+                          </span>
                         </span>
-                      </span>
 
-                      <span className="flex items-center gap-1 text-emerald-500">
-                        <ShieldCheck className="h-3.5 w-3.5" />
-                        Escrow safe
-                      </span>
+                        <span className="flex items-center gap-1 text-emerald-500">
+                          <ShieldCheck className="h-3.5 w-3.5" />
+                          Escrow safe
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </Link>
-                {p.quantity > 0 && (
-                  <div className="mt-3 pt-3 border-t border-zinc-200/60">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="w-full rounded-full border-zinc-200 text-xs"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        addItem(p.id, 1, p.quantity);
-                      }}
-                    >
-                      <ShoppingCart className="mr-2 h-3.5 w-3.5" />
-                      Add to cart
-                      {(items[p.id] ?? 0) > 0 && ` (${items[p.id]})`}
-                    </Button>
-                  </div>
-                )}
+                  </Link>
+                  {p.quantity > 0 && (
+                    <div className="mt-3 pt-3 border-t border-zinc-200/60">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="w-full rounded-full border-zinc-200 text-xs"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          addItem(p.id, 1, p.quantity);
+                        }}
+                      >
+                        <ShoppingCart className="mr-2 h-3.5 w-3.5" />
+                        Add to cart
+                        {(items[p.id] ?? 0) > 0 && ` (${items[p.id]})`}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

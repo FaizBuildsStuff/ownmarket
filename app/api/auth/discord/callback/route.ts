@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { createClient } from "@supabase/supabase-js";
-
-const NEXT_PUBLIC_APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+import { db } from "@/lib/db";
+import { users } from "@/lib/schema";
+import { eq } from "drizzle-orm";
+const NEXT_PUBLIC_APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -13,7 +15,10 @@ function verifyState(state: string): string | null {
   if (!secret) return null;
   const [payload, sig] = state.split(".");
   if (!payload || !sig) return null;
-  const expected = crypto.createHmac("sha256", secret).update(payload).digest("hex");
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(payload)
+    .digest("hex");
   if (sig !== expected) return null;
   try {
     return Buffer.from(payload, "base64url").toString("utf8");
@@ -28,20 +33,28 @@ export async function GET(request: NextRequest) {
   const error = request.nextUrl.searchParams.get("error");
 
   if (error) {
-    return NextResponse.redirect(new URL("/dashboard?error=discord_denied", NEXT_PUBLIC_APP_URL));
+    return NextResponse.redirect(
+      new URL("/dashboard?error=discord_denied", NEXT_PUBLIC_APP_URL),
+    );
   }
 
   if (!code || !state) {
-    return NextResponse.redirect(new URL("/dashboard?error=discord_missing", NEXT_PUBLIC_APP_URL));
+    return NextResponse.redirect(
+      new URL("/dashboard?error=discord_missing", NEXT_PUBLIC_APP_URL),
+    );
   }
 
   const userId = verifyState(state);
   if (!userId) {
-    return NextResponse.redirect(new URL("/dashboard?error=discord_invalid_state", NEXT_PUBLIC_APP_URL));
+    return NextResponse.redirect(
+      new URL("/dashboard?error=discord_invalid_state", NEXT_PUBLIC_APP_URL),
+    );
   }
 
   if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
-    return NextResponse.redirect(new URL("/dashboard?error=discord_config", NEXT_PUBLIC_APP_URL));
+    return NextResponse.redirect(
+      new URL("/dashboard?error=discord_config", NEXT_PUBLIC_APP_URL),
+    );
   }
 
   const redirectUri = `${NEXT_PUBLIC_APP_URL}/api/auth/discord/callback`;
@@ -60,7 +73,9 @@ export async function GET(request: NextRequest) {
   });
 
   if (!tokenRes.ok) {
-    return NextResponse.redirect(new URL("/dashboard?error=discord_token", NEXT_PUBLIC_APP_URL));
+    return NextResponse.redirect(
+      new URL("/dashboard?error=discord_token", NEXT_PUBLIC_APP_URL),
+    );
   }
 
   const tokenData = (await tokenRes.json()) as { access_token: string };
@@ -69,7 +84,9 @@ export async function GET(request: NextRequest) {
   });
 
   if (!userRes.ok) {
-    return NextResponse.redirect(new URL("/dashboard?error=discord_user", NEXT_PUBLIC_APP_URL));
+    return NextResponse.redirect(
+      new URL("/dashboard?error=discord_user", NEXT_PUBLIC_APP_URL),
+    );
   }
 
   const discordUser = (await userRes.json()) as {
@@ -78,19 +95,22 @@ export async function GET(request: NextRequest) {
     avatar: string | null;
   };
 
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    return NextResponse.redirect(new URL("/dashboard?error=supabase_config", NEXT_PUBLIC_APP_URL));
+  try {
+    await db
+      .update(users)
+      .set({
+        discordId: discordUser.id,
+        discordUsername: discordUser.username,
+        discordAvatar: discordUser.avatar,
+      })
+      .where(eq(users.id, userId));
+  } catch (error) {
+    return NextResponse.redirect(
+      new URL("/dashboard?error=db_error", NEXT_PUBLIC_APP_URL),
+    );
   }
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-  await supabase
-    .from("profiles")
-    .update({
-      discord_id: discordUser.id,
-      discord_username: discordUser.username,
-      discord_avatar: discordUser.avatar,
-    })
-    .eq("id", userId);
-
-  return NextResponse.redirect(new URL("/dashboard?discord=connected", NEXT_PUBLIC_APP_URL));
+  return NextResponse.redirect(
+    new URL("/dashboard?discord=connected", NEXT_PUBLIC_APP_URL),
+  );
 }

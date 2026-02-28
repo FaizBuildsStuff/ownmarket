@@ -15,8 +15,9 @@ import {
   ShoppingCart,
   Menu,
   X,
+  CheckCircle2,
 } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
+// Removed supabase client
 import {
   Dialog,
   DialogContent,
@@ -78,36 +79,37 @@ export function Header() {
       }
     }
 
-    const syncFromSupabase = async () => {
-      const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user) {
-        return;
+    const syncFromApi = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const { user } = await res.json();
+          if (user) {
+            setUserId(user.id);
+            setUserRole(user.role);
+            window.localStorage.setItem(
+              LOCAL_KEY,
+              JSON.stringify({ userId: user.id, role: user.role })
+            );
+          }
+        } else {
+          setUserId(null);
+          setUserRole(null);
+          window.localStorage.removeItem(LOCAL_KEY);
+        }
+      } catch (err) {
+        console.error("Auth sync error", err);
       }
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", authData.user.id)
-        .maybeSingle();
-
-      const role = (profile?.role as UserRole) ?? null;
-
-      setUserId(authData.user.id);
-      setUserRole(role);
-      window.localStorage.setItem(
-        LOCAL_KEY,
-        JSON.stringify({ userId: authData.user.id, role })
-      );
     };
 
-    void syncFromSupabase();
+    void syncFromApi();
   }, []);
 
   const handleChange =
     (field: keyof typeof form) =>
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setForm((prev) => ({ ...prev, [field]: e.target.value }));
-    };
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        setForm((prev) => ({ ...prev, [field]: e.target.value }));
+      };
 
   const resetForm = () => {
     setForm({
@@ -119,6 +121,13 @@ export function Header() {
     setError(null);
   };
 
+  // Add this inside the Header component at the top
+  const [discordData, setDiscordData] = useState<{
+    id: string | null;
+    username: string | null;
+    avatar: string | null;
+  }>({ id: null, username: null, avatar: null });
+
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -126,52 +135,40 @@ export function Header() {
 
     try {
       if (authMode === "signup") {
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email: form.email,
-          password: form.password,
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: form.email, password: form.password, username: form.username }),
         });
+        const data = await res.json();
 
-        if (signUpError || !data.user) {
-          throw signUpError ?? new Error("Sign up failed");
+        if (!res.ok) {
+          throw new Error(data.error || "Sign up failed");
         }
 
-        await supabase.from("profiles").upsert({
-          id: data.user.id,
-          username: form.username,
-          discord_handle: form.discordHandle,
-        });
-
         setUserId(data.user.id);
-        setUserRole(null);
+        setUserRole(data.user.role || null);
         window.localStorage.setItem(
           LOCAL_KEY,
-          JSON.stringify({ userId: data.user.id, role: null })
+          JSON.stringify({ userId: data.user.id, role: data.user.role || null })
         );
       } else {
-        const { data, error: signInError } = await supabase.auth.signInWithPassword(
-          {
-            email: form.email,
-            password: form.password,
-          }
-        );
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: form.email, password: form.password }),
+        });
+        const data = await res.json();
 
-        if (signInError || !data.user) {
-          throw signInError ?? new Error("Login failed");
+        if (!res.ok) {
+          throw new Error(data.error || "Login failed");
         }
 
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", data.user.id)
-          .maybeSingle();
-
-        const role = (profile?.role as UserRole) ?? null;
-
         setUserId(data.user.id);
-        setUserRole(role);
+        setUserRole(data.user.role || null);
         window.localStorage.setItem(
           LOCAL_KEY,
-          JSON.stringify({ userId: data.user.id, role })
+          JSON.stringify({ userId: data.user.id, role: data.user.role || null })
         );
       }
 
@@ -185,7 +182,7 @@ export function Header() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await fetch('/api/auth/login', { method: 'DELETE' });
     window.localStorage.removeItem(LOCAL_KEY);
     setUserId(null);
     setUserRole(null);
@@ -443,29 +440,66 @@ export function Header() {
           <form onSubmit={handleAuthSubmit} className="mt-2 space-y-3">
             {authMode === "signup" && (
               <>
+                {/* USERNAME FIELD */}
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-zinc-700">
-                    Discord handle
-                  </label>
-                  <input
-                    required
-                    value={form.discordHandle}
-                    onChange={handleChange("discordHandle")}
-                    placeholder="e.g. ownmarket#0001"
-                    className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs outline-none ring-0 transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-zinc-700">
-                    Username
+                  <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+                    Marketplace Username
                   </label>
                   <input
                     required
                     value={form.username}
                     onChange={handleChange("username")}
-                    placeholder="Choose a marketplace username"
-                    className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs outline-none ring-0 transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+                    placeholder="Choose your public name"
+                    className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm outline-none transition focus:border-black focus:bg-white focus:ring-4 focus:ring-black/5"
                   />
+                </div>
+
+                {/* DISCORD CONNECT - REPLACING TEXT FIELD */}
+                <div className="space-y-3 pt-2">
+                  <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+                    Identity Verification
+                  </label>
+
+                  {discordData.username ? (
+                    /* SHOW THIS IF ALREADY CONNECTED */
+                    <div className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-3">
+                      <div className="relative">
+                        <img
+                          src={discordData.avatar
+                            ? `https://cdn.discordapp.com/avatars/${discordData.id}/${discordData.avatar}.png`
+                            : `https://cdn.discordapp.com/embed/avatars/0.png`}
+                          className="h-10 w-10 rounded-full border-2 border-white shadow-sm"
+                          alt="Discord"
+                        />
+                        <div className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-white">
+                          <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                        </div>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-emerald-900">@{discordData.username}</span>
+                        <span className="text-[9px] font-medium uppercase tracking-wider text-emerald-600">Connected</span>
+                      </div>
+                    </div>
+                  ) : (
+                    /* SHOW THE CONNECT BUTTON IF NOT CONNECTED */
+                    <div className="group relative">
+                      <Button
+                        type="button"
+                        asChild
+                        className="w-full rounded-xl bg-[#5865F2] py-6 font-bold uppercase tracking-widest text-[10px] transition-all hover:bg-[#4752C4] hover:shadow-lg hover:shadow-indigo-500/20"
+                      >
+                        <a href={`/api/auth/discord?userId=${encodeURIComponent(userId ?? "pending")}`}>
+                          <svg className="mr-2 h-4 w-4 fill-white" viewBox="0 0 24 24">
+                            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127c-.595.348-1.196.647-1.873.892a.076.076 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.086 2.157 2.419c0 1.334-.947 2.419-2.157 2.419zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.086 2.157 2.419c0 1.334-.946 2.419-2.157 2.419z" />
+                          </svg>
+                          Connect Discord Profile
+                        </a>
+                      </Button>
+                      <p className="mt-2 text-[9px] text-center font-medium text-zinc-400 italic">
+                        Connect to verify your identity.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -529,8 +563,8 @@ export function Header() {
                 {loading
                   ? "Please wait..."
                   : authMode === "signup"
-                  ? "Sign up"
-                  : "Log in"}
+                    ? "Sign up"
+                    : "Log in"}
               </Button>
             </DialogFooter>
           </form>

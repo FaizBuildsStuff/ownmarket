@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { supabase } from "@/lib/supabaseClient";
+import { fetchMarketplaceProductsAction } from "@/app/actions";
 import { useCart } from "@/context/CartContext";
 import { Plus, ShoppingBag, ArrowUpRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -35,13 +35,13 @@ export default function MarketplacePage() {
       gsap.fromTo(
         ".product-item",
         { y: 20, opacity: 0 },
-        { 
-          y: 0, 
-          opacity: 1, 
-          duration: 1, 
-          stagger: 0.05, 
+        {
+          y: 0,
+          opacity: 1,
+          duration: 1,
+          stagger: 0.05,
           ease: "expo.out",
-          delay: 0.1 
+          delay: 0.1
         }
       );
     }
@@ -49,23 +49,20 @@ export default function MarketplacePage() {
 
   const fetchProducts = async () => {
     try {
-      const { data: baseProducts } = await supabase
-        .from("products")
-        .select("id, seller_id, name, price, quantity, description")
-        .order("created_at", { ascending: false });
-
-      if (!baseProducts) return;
-
-      const sellerIds = Array.from(new Set(baseProducts.map((p) => p.seller_id).filter(Boolean)));
-      const { data: profileData } = await supabase.from("profiles").select("id, username").in("id", sellerIds);
-
-      const profileMap = new Map(profileData?.map((p) => [p.id, p.username]));
-      const enriched = baseProducts.map((p: any) => ({
-        ...p,
-        seller_username: profileMap.get(p.seller_id) ?? "Verified",
+      const data = await fetchMarketplaceProductsAction();
+      const enriched = data.map((p) => ({
+        id: p.id,
+        seller_id: p.sellerId,
+        name: p.name,
+        price: Number(p.price),
+        quantity: p.quantity,
+        description: p.description,
+        seller_username: p.sellerUsername || 'Verified',
       }));
 
       setProducts(enriched);
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -76,7 +73,7 @@ export default function MarketplacePage() {
   return (
     <div className="min-h-screen bg-white text-zinc-900 selection:bg-black selection:text-white">
       <div className="mx-auto max-w-[1400px] px-6 py-20 lg:px-10">
-        
+
         {/* MINIMALIST NAVIGATION */}
         <header className="mb-32 flex flex-col md:flex-row md:items-end justify-between gap-12">
           <div className="space-y-4">
@@ -110,20 +107,20 @@ export default function MarketplacePage() {
           <div className="grid grid-cols-1 gap-x-8 gap-y-20 sm:grid-cols-2 lg:grid-cols-4">
             {products.map((p) => (
               <div key={p.id} className="product-item group flex flex-col">
-                
+
                 {/* 1. IMAGE CANVAS */}
                 <div className="relative mb-6 aspect-[4/5] overflow-hidden bg-zinc-50 transition-colors group-hover:bg-zinc-100">
                   <div className="absolute inset-0 flex items-center justify-center opacity-10 group-hover:opacity-20 transition-opacity">
                     <span className="text-8xl font-black">{p.name[0]}</span>
                   </div>
-                  
+
                   {/* Hover Quick-Action */}
                   <div className="absolute inset-0 flex items-end p-6 translate-y-4 opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100">
                     <Button
                       onClick={() => addItem(p.id, 1, p.quantity)}
                       className="h-12 w-full rounded-none bg-black text-white hover:bg-zinc-800 transition-colors text-[10px] font-bold uppercase tracking-widest"
                     >
-                      {items[p.id] ? <span className="flex items-center gap-2"><Check className="h-3 w-3"/> Added to Cart</span> : "Add to Cart"}
+                      {items[p.id] ? <span className="flex items-center gap-2"><Check className="h-3 w-3" /> Added to Cart</span> : "Add to Cart"}
                     </Button>
                   </div>
 
@@ -144,7 +141,7 @@ export default function MarketplacePage() {
                       ${p.price.toLocaleString()}
                     </span>
                   </div>
-                  
+
                   <p className="text-[11px] leading-relaxed text-zinc-400 line-clamp-1 font-medium italic">
                     {p.description || "Verified Digital Asset"}
                   </p>

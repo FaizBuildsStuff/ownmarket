@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { supabase } from "@/lib/supabaseClient";
+import { fetchProductDetailsAction } from "@/app/actions";
 import {
   ArrowLeft,
   ShieldCheck,
@@ -37,28 +37,38 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     const fetchData = async () => {
-      // 1. Get the product
-      const { data: prod } = await supabase
-        .from("products")
-        .select("*")
-        .eq("id", params.id)
-        .maybeSingle();
+      try {
+        const data = await fetchProductDetailsAction(params.id as string);
+        if (!data || !data.product) {
+          router.push("/");
+          return;
+        }
 
-      if (!prod) {
-        router.push("/");
-        return;
+        const { product: prod, seller } = data;
+
+        setProduct({
+          id: prod.id,
+          seller_id: prod.sellerId,
+          name: prod.name,
+          price: Number(prod.price),
+          quantity: prod.quantity,
+          description: prod.description,
+          badge: prod.badge,
+        });
+
+        if (seller) {
+          setSellerProfile({
+            ...seller,
+            discord_id: seller.discordId,
+            discord_avatar: seller.discordAvatar,
+            discord_username: seller.discordUsername,
+          });
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
       }
-      setProduct(prod);
-
-      // 2. Get the seller details (Discord info included)
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("id, username, discord_id, discord_avatar, discord_username, created_at")
-        .eq("id", prod.seller_id)
-        .maybeSingle();
-
-      setSellerProfile(profile);
-      setLoading(false);
     };
 
     if (params.id) fetchData();
@@ -76,7 +86,7 @@ export default function ProductDetailPage() {
   return (
     <div className="min-h-screen bg-white text-zinc-900">
       <div className="mx-auto max-w-6xl px-6 py-10">
-        
+
         {/* BACK BUTTON */}
         <button
           onClick={() => router.back()}
@@ -86,7 +96,7 @@ export default function ProductDetailPage() {
         </button>
 
         <div className="grid grid-cols-1 gap-16 lg:grid-cols-[1fr_360px]">
-          
+
           {/* MAIN SECTION */}
           <main className="space-y-12">
             <header className="space-y-4">
@@ -129,16 +139,16 @@ export default function ProductDetailPage() {
               </div>
 
               <div className="space-y-3">
-                <Button 
+                <Button
                   onClick={() => addItem(product.id, 1, product.quantity)}
                   className="w-full rounded-2xl py-7 text-sm font-bold uppercase tracking-widest bg-black text-white hover:bg-zinc-800"
                 >
                   <ShoppingCart className="mr-2 h-4 w-4" />
                   {items[product.id] ? "In your cart" : "Add to Cart"}
                 </Button>
-                
-                <Button 
-                  variant="outline" 
+
+                <Button
+                  variant="outline"
                   className="w-full rounded-2xl py-7 text-sm font-bold uppercase tracking-widest border-zinc-200"
                   onClick={() => router.push(`/messages?seller=${product.seller_id}`)}
                 >
