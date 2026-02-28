@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useCart } from "@/context/CartContext";
 import { ShieldCheck, ShoppingBag, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CardSpotlight } from "@/components/ui/card-spotlight";
 
 type ProductCard = {
   id: string;
@@ -22,12 +23,20 @@ export default function MarketplacePage() {
   const { addItem, items } = useCart();
   const [products, setProducts] = useState<ProductCard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
+
+useEffect(() => {
+  setMounted(true);
+}, []);
+
 
   useEffect(() => {
     const fetchProducts = async () => {
       const { data } = await supabase
         .from("products")
-        .select("id, seller_id, name, price, quantity, description, discord_channel_link")
+        .select(
+          "id, seller_id, name, price, quantity, description, discord_channel_link"
+        )
         .order("created_at", { ascending: false });
 
       const baseProducts = ((data as any) ?? []) as ProductCard[];
@@ -66,85 +75,107 @@ export default function MarketplacePage() {
   }, []);
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-120px)] w-full max-w-6xl flex-col gap-8 px-6 py-8 lg:px-10 lg:py-12">
-      <header className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
+    <div className="relative mx-auto flex min-h-[calc(100vh-120px)] w-full max-w-6xl flex-col gap-12 px-6 py-12 lg:px-10">
+
+      {/* HEADER */}
+      <header className="space-y-4">
+        <p className="text-xs uppercase tracking-[0.35em] text-zinc-400">
           Marketplace
         </p>
-        <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">
-          Browse all listings
+        <h1 className="text-4xl font-semibold tracking-tight text-zinc-900">
+          Discover Digital Assets
+          <span className="block bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400 bg-clip-text text-transparent">
+            Premium Discord Perks
+          </span>
         </h1>
-        <p className="text-sm text-zinc-600">
-          Discover Nitro, boosts, OG handles, and more from verified sellers.
+        <p className="max-w-xl text-sm text-zinc-600">
+          Browse Nitro, boosts, OG handles, and more from trusted sellers.
+          All trades happen directly via Discord.
         </p>
       </header>
 
       {loading ? (
         <p className="text-sm text-zinc-500">Loading marketplace...</p>
       ) : products.length === 0 ? (
-        <div className="rounded-2xl border border-zinc-200 bg-white p-8 text-center">
-          <ShoppingBag className="mx-auto mb-3 h-12 w-12 text-zinc-300" />
-          <p className="text-sm font-medium text-zinc-900">No listings yet</p>
+        <div className="rounded-3xl border border-zinc-200 bg-white p-12 text-center shadow-sm">
+          <ShoppingBag className="mx-auto mb-4 h-12 w-12 text-zinc-300" />
+          <p className="text-sm font-medium text-zinc-900">
+            No listings yet
+          </p>
           <p className="mt-1 text-xs text-zinc-500">
-            Sellers will start posting here soon. Check back later!
+            Sellers will start posting here soon.
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
           {products.map((p) => (
-            <div
+            <CardSpotlight
               key={p.id}
-              className="group rounded-2xl border border-zinc-200 bg-white p-5 text-xs text-zinc-700 shadow-[0_18px_45px_rgba(15,23,42,0.06)] transition hover:-translate-y-1 hover:border-indigo-200/80 hover:shadow-[0_22px_55px_rgba(15,23,42,0.12)]"
+              className="relative rounded-3xl bg-zinc-900 p-6 text-white shadow-[0_30px_80px_rgba(0,0,0,0.25)]"
             >
-              <Link href={`/products/${p.id}`} className="block">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="line-clamp-1 text-sm font-semibold text-zinc-900">
+              <Link
+                href={`/products/${p.id}`}
+                className="relative z-20 block space-y-4"
+              >
+                {/* Title + Price */}
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="text-lg font-semibold">
                     {p.name}
-                  </p>
-                  <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] font-medium text-zinc-50">
+                  </h3>
+
+                  <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur">
                     ${p.price.toFixed(2)}
                   </span>
                 </div>
-                <p className="line-clamp-2 text-[11px] text-zinc-500">
-                  {p.description || "Premium Discord perk from a verified seller."}
+
+                {/* Description */}
+                <p className="line-clamp-2 text-sm text-zinc-300">
+                  {p.description ||
+                    "Premium Discord digital asset from a trusted seller."}
                 </p>
-                <div className="mt-3 flex items-center justify-between text-[11px] text-zinc-500">
-                  <span>{p.quantity} in stock</span>
-                  {p.discord_channel_link && (
-                    <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-600">
-                      Discord channel
-                    </span>
-                  )}
-                </div>
-                <div className="mt-2 flex items-center justify-between text-[10px] text-zinc-400">
-                  <span className="truncate">
-                    by{" "}
-                    <span className="font-medium text-zinc-600">
-                      {p.seller_username || "unknown seller"}
-                    </span>
+
+                {/* Stock + Escrow */}
+                <div className="flex items-center justify-between text-xs text-zinc-400">
+                  <span>
+                    {p.quantity > 0
+                      ? `${p.quantity} in stock`
+                      : "Out of stock"}
                   </span>
-                  <span className="flex items-center gap-1 text-emerald-500">
-                    <ShieldCheck className="h-3 w-3" />
+
+                  <span className="flex items-center gap-1 text-emerald-400">
+                    <ShieldCheck className="h-3.5 w-3.5" />
                     Escrow safe
                   </span>
                 </div>
+
+                {/* Seller */}
+                <div className="text-xs text-zinc-400">
+                  by{" "}
+                  <span className="font-medium text-zinc-200">
+                    {p.seller_username || "unknown seller"}
+                  </span>
+                </div>
               </Link>
+
+              {/* CTA */}
               {p.quantity > 0 && (
-                <div className="mt-3 pt-3 border-t border-zinc-100">
+                <div className="relative z-20 mt-6">
                   <Button
-                    type="button"
                     size="sm"
-                    variant="outline"
-                    className="w-full rounded-full border-zinc-200 text-[11px]"
+                    className="w-full rounded-full bg-white text-black hover:bg-indigo-400 hover:text-white transition"
                     onClick={() => addItem(p.id, 1, p.quantity)}
                   >
-                    <ShoppingCart className="mr-2 h-3.5 w-3.5" />
+                    <ShoppingCart className="mr-2 h-4 w-4" />
                     Add to cart
-                    {(items[p.id] ?? 0) > 0 && ` (${items[p.id]})`}
+                    {(items[p.id] ?? 0) > 0 && (
+                      <span className="ml-2 text-xs opacity-70">
+                        ({items[p.id]})
+                      </span>
+                    )}
                   </Button>
                 </div>
               )}
-            </div>
+            </CardSpotlight>
           ))}
         </div>
       )}

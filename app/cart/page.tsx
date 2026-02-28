@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { useCart } from "@/context/CartContext";
@@ -8,12 +8,11 @@ import {
   ShoppingCart,
   Trash2,
   MessageCircle,
-  ExternalLink,
   Minus,
   Plus,
-  UserCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import gsap from "gsap";
 
 type CartProduct = {
   id: string;
@@ -35,18 +34,20 @@ function groupBySeller(
   profiles: Map<string, SellerProfile>
 ) {
   const bySeller = new Map<string, (typeof rows)[0][]>();
+
   for (const row of rows) {
     const list = bySeller.get(row.seller_id) ?? [];
     list.push(row);
     bySeller.set(row.seller_id, list);
   }
+
   return Array.from(bySeller.entries()).map(([sellerId, sellerRows]) => {
     const profile = profiles.get(sellerId);
     const sellerSubtotal = sellerRows.reduce(
       (sum, r) => sum + r.price * r.cartQty,
       0
     );
-    const sellerItemCount = sellerRows.reduce((sum, r) => sum + r.cartQty, 0);
+
     return {
       sellerId,
       sellerName:
@@ -54,10 +55,8 @@ function groupBySeller(
           ? `@${profile.discord_username}`
           : profile?.username ?? "Seller",
       discordId: profile?.discord_id ?? null,
-      profile,
       rows: sellerRows,
       sellerSubtotal,
-      sellerItemCount,
     };
   });
 }
@@ -70,7 +69,10 @@ export default function CartPage() {
   );
   const [loading, setLoading] = useState(true);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+
   const productIds = Object.keys(items);
+
   useEffect(() => {
     if (productIds.length === 0) {
       setProducts([]);
@@ -78,33 +80,71 @@ export default function CartPage() {
       setLoading(false);
       return;
     }
+
     const fetchData = async () => {
       const { data: productData } = await supabase
         .from("products")
         .select("id, name, price, quantity, seller_id")
         .in("id", productIds);
+
       const prods = (productData as CartProduct[]) ?? [];
       setProducts(prods);
 
       const sellerIds = [
         ...new Set(prods.map((p) => p.seller_id).filter(Boolean)),
       ];
+
       if (sellerIds.length === 0) {
         setProfiles(new Map());
         setLoading(false);
         return;
       }
+
       const { data: profileData } = await supabase
         .from("profiles")
         .select("id, username, discord_username, discord_id")
         .in("id", sellerIds);
+
       const map = new Map<string, SellerProfile>();
       (profileData as SellerProfile[])?.forEach((p) => map.set(p.id, p));
+
       setProfiles(map);
       setLoading(false);
     };
+
     void fetchData();
   }, [productIds.join(",")]);
+
+  useEffect(() => {
+    if (!loading) {
+      const ctx = gsap.context(() => {
+        gsap.from(".cart-hero", {
+          y: 30,
+          opacity: 0,
+          duration: 0.6,
+          ease: "power3.out",
+        });
+
+        gsap.from(".cart-group", {
+          y: 40,
+          opacity: 0,
+          duration: 0.7,
+          stagger: 0.15,
+          ease: "power3.out",
+        });
+
+        gsap.from(".cart-summary", {
+          y: 20,
+          opacity: 0,
+          duration: 0.6,
+          delay: 0.3,
+          ease: "power3.out",
+        });
+      }, containerRef);
+
+      return () => ctx.revert();
+    }
+  }, [loading]);
 
   const rows = products
     .map((p) => ({ ...p, cartQty: items[p.id] ?? 0 }))
@@ -112,138 +152,121 @@ export default function CartPage() {
 
   const groups = groupBySeller(rows, profiles);
   const subtotal = rows.reduce((sum, r) => sum + r.price * r.cartQty, 0);
-  const sellerCount = groups.length;
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-120px)] w-full max-w-3xl flex-col gap-8 px-6 py-8 lg:px-10 lg:py-12">
-      <header className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
-            Your cart
-          </h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            {itemCount === 0
-              ? "No items yet. Add listings from the marketplace."
-              : `${itemCount} item${itemCount === 1 ? "" : "s"} from ${sellerCount} seller${sellerCount === 1 ? "" : "s"} — contact each seller on Discord to complete your trade.`}
-          </p>
-        </div>
-        <Link
-          href="/marketplace"
-          className="text-xs font-medium text-indigo-600 hover:underline"
-        >
-          Continue shopping
-        </Link>
-      </header>
+    <div
+      ref={containerRef}
+      className="mx-auto flex min-h-[calc(100vh-120px)] w-full max-w-4xl flex-col gap-10 px-6 py-14"
+    >
+      {/* HEADER */}
+      <div className="cart-hero space-y-4">
+        <h1 className="text-4xl font-semibold tracking-tight text-zinc-900">
+          Your Cart
+        </h1>
+        <p className="text-sm text-zinc-500">
+          {itemCount === 0
+            ? "Your cart is empty."
+            : `${itemCount} item${
+                itemCount === 1 ? "" : "s"
+              } — contact sellers directly on Discord.`}
+        </p>
+      </div>
 
       {itemCount === 0 ? (
-        <div className="rounded-2xl border border-zinc-200 bg-white p-12 text-center">
-          <ShoppingCart className="mx-auto mb-4 h-12 w-12 text-zinc-300" />
-          <p className="text-sm font-medium text-zinc-900">Cart is empty</p>
-          <p className="mt-1 text-xs text-zinc-500">
-            Browse the marketplace and add Nitro, boosts, or OG handles to get
-            started.
-          </p>
-          <Button asChild size="sm" className="mt-4 rounded-full">
-            <Link href="/marketplace">Go to marketplace</Link>
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-zinc-200 bg-white p-16 text-center shadow-sm">
+          <ShoppingCart className="mb-6 h-14 w-14 text-zinc-300" />
+          <Button asChild className="rounded-full px-6">
+            <Link href="/marketplace">Explore marketplace</Link>
           </Button>
         </div>
       ) : loading ? (
-        <p className="text-sm text-zinc-500">Loading cart...</p>
+        <p>Loading...</p>
       ) : (
         <>
-          <div className="space-y-6">
+          {/* SELLER GROUPS */}
+          <div className="space-y-8">
             {groups.map((group) => (
-              <section
+              <div
                 key={group.sellerId}
-                className="rounded-2xl border border-zinc-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.06)] overflow-hidden"
+                className="cart-group rounded-3xl border border-zinc-200 bg-white shadow-sm transition hover:shadow-md"
               >
-                <div className="border-b border-zinc-200 bg-zinc-50/80 px-4 py-3 flex flex-wrap items-center justify-between gap-2">
-                  <Link
-                    href={`/users/${group.sellerId}`}
-                    className="inline-flex items-center gap-2 text-sm font-medium text-zinc-900 hover:text-indigo-600 hover:underline"
-                  >
-                    <UserCircle2 className="h-4 w-4 text-zinc-500" />
-                    {group.sellerName}
-                  </Link>
-                  <span className="text-[11px] text-zinc-500">
-                    {group.sellerItemCount} item
-                    {group.sellerItemCount === 1 ? "" : "s"} · $
-                    {group.sellerSubtotal.toFixed(2)} total
-                  </span>
-                  {group.discordId ? (
+                <div className="flex items-center justify-between border-b border-zinc-100 px-6 py-5">
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-900">
+                      {group.sellerName}
+                    </p>
+                    <p className="text-xs text-zinc-500">
+                      ${group.sellerSubtotal.toFixed(2)}
+                    </p>
+                  </div>
+
+                  {group.discordId && (
                     <a
                       href={`https://discord.com/users/${group.discordId}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[#5865F2] px-3 py-1.5 text-[11px] font-medium text-white hover:bg-[#4752C4]"
+                      className="rounded-full bg-indigo-600 px-4 py-2 text-xs text-white hover:bg-indigo-500"
                     >
-                      <MessageCircle className="h-3.5 w-3.5" />
-                      Contact this seller
-                      <ExternalLink className="h-3 w-3" />
+                      Contact
                     </a>
-                  ) : (
-                    <Link
-                      href={`/users/${group.sellerId}`}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-700 hover:bg-zinc-50"
-                    >
-                      View profile
-                    </Link>
                   )}
                 </div>
+
                 <ul className="divide-y divide-zinc-100">
                   {group.rows.map((row) => (
                     <li
                       key={row.id}
-                      className="flex flex-wrap items-center gap-4 px-4 py-3"
+                      className="flex items-center justify-between px-6 py-5"
                     >
-                      <div className="min-w-0 flex-1">
-                        <Link
-                          href={`/products/${row.id}`}
-                          className="font-medium text-zinc-900 hover:text-indigo-600 hover:underline"
-                        >
+                      <div>
+                        <p className="text-sm font-medium text-zinc-900">
                           {row.name}
-                        </Link>
-                        <p className="mt-0.5 text-xs text-zinc-500">
-                          ${row.price.toFixed(2)} each · max {row.quantity} in
-                          stock
+                        </p>
+                        <p className="text-xs text-zinc-500">
+                          ${row.price.toFixed(2)}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center rounded-lg border border-zinc-200 bg-zinc-50">
+
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
                           <button
-                            type="button"
                             onClick={() =>
-                              updateQuantity(row.id, row.cartQty - 1, row.quantity)
+                              updateQuantity(
+                                row.id,
+                                row.cartQty - 1,
+                                row.quantity
+                              )
                             }
-                            disabled={row.cartQty <= 1}
-                            className="flex h-8 w-8 items-center justify-center rounded-l-lg text-zinc-600 hover:bg-zinc-100 disabled:opacity-50"
-                            aria-label="Decrease quantity"
+                            className="rounded-lg border border-zinc-200 p-2"
                           >
-                            <Minus className="h-3.5 w-3.5" />
+                            <Minus className="h-3 w-3" />
                           </button>
-                          <span className="min-w-8 text-center text-sm font-medium text-zinc-900">
+
+                          <span className="text-sm font-medium">
                             {row.cartQty}
                           </span>
+
                           <button
-                            type="button"
                             onClick={() =>
-                              updateQuantity(row.id, row.cartQty + 1, row.quantity)
+                              updateQuantity(
+                                row.id,
+                                row.cartQty + 1,
+                                row.quantity
+                              )
                             }
-                            disabled={row.cartQty >= row.quantity}
-                            className="flex h-8 w-8 items-center justify-center rounded-r-lg text-zinc-600 hover:bg-zinc-100 disabled:opacity-50"
-                            aria-label="Increase quantity"
+                            className="rounded-lg border border-zinc-200 p-2"
                           >
-                            <Plus className="h-3.5 w-3.5" />
+                            <Plus className="h-3 w-3" />
                           </button>
                         </div>
-                        <span className="w-16 text-right text-sm font-semibold text-zinc-900">
+
+                        <span className="w-20 text-right text-sm font-semibold">
                           ${(row.price * row.cartQty).toFixed(2)}
                         </span>
+
                         <button
-                          type="button"
                           onClick={() => removeItem(row.id)}
-                          className="rounded-lg p-2 text-zinc-400 hover:bg-red-50 hover:text-red-600"
-                          aria-label="Remove from cart"
+                          className="rounded-lg p-2 text-zinc-400 hover:text-red-600"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -251,34 +274,36 @@ export default function CartPage() {
                     </li>
                   ))}
                 </ul>
-              </section>
+              </div>
             ))}
           </div>
 
-          <div className="rounded-2xl border border-zinc-200 bg-zinc-50/80 p-5">
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-medium text-zinc-700">
-                Total ({sellerCount} seller{sellerCount === 1 ? "" : "s"})
+          {/* SUMMARY */}
+          <div className="cart-summary rounded-3xl border border-zinc-200 bg-zinc-50 p-8 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-zinc-700">
+                Total
               </span>
-              <span className="text-lg font-semibold text-zinc-900">
+              <span className="text-2xl font-semibold text-zinc-900">
                 ${subtotal.toFixed(2)}
               </span>
             </div>
-            <p className="mt-2 text-[11px] text-zinc-500">
-              OwnMarket doesn’t process payments. Contact each seller above to
-              complete your trades on Discord (escrow recommended for larger
-              amounts).
+
+            <p className="mt-4 text-xs text-zinc-500">
+              OwnMarket does not process payments. Contact sellers to complete
+              your trade.
             </p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Button asChild className="rounded-full bg-indigo-600 hover:bg-indigo-500">
-                <Link href="/discord" className="inline-flex items-center gap-2">
-                  <MessageCircle className="h-4 w-4" />
-                  Open OwnMarket Discord
-                  <ExternalLink className="h-3.5 w-3.5" />
+
+            <div className="mt-6 flex gap-4">
+              <Button asChild className="rounded-full">
+                <Link href="/discord">
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  Open Discord
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="sm" className="rounded-full">
-                <Link href="/marketplace">Keep shopping</Link>
+
+              <Button asChild variant="outline" className="rounded-full">
+                <Link href="/marketplace">Continue shopping</Link>
               </Button>
             </div>
           </div>
