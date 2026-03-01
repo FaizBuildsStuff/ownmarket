@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { supabase } from "@/lib/supabaseClient";
+import { fetchSellerProfileAndProductsAction } from "@/app/actions";
 import {
   ArrowLeft,
   UserCircle2,
@@ -44,27 +44,38 @@ export default function UserProfilePage() {
 
   useEffect(() => {
     const run = async () => {
-      const [{ data: profileData }, { data: productData }] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("id, username, discord_handle, discord_id, discord_username, discord_avatar, created_at, badge, banned, banned_until")
-          .eq("id", params.id)
-          .maybeSingle(),
-        supabase
-          .from("products")
-          .select("id, name, price, quantity, created_at")
-          .eq("seller_id", params.id)
-          .order("created_at", { ascending: false }),
-      ]);
+      try {
+        const data = await fetchSellerProfileAndProductsAction(params.id as string);
 
-      if (!profileData) {
-        router.push("/");
-        return;
+        if (!data || !data.seller) {
+          router.push("/");
+          return;
+        }
+
+        const { seller, products: sellerProducts } = data;
+
+        setProfile({
+          id: seller.id,
+          username: seller.username,
+          discord_handle: seller.discordUsername,
+          discord_id: seller.discordId,
+          discord_username: seller.discordUsername,
+          discord_avatar: seller.discordAvatar,
+          created_at: seller.createdAt ? seller.createdAt.toISOString() : null,
+          badge: null, // The db schema for users might not have a badge field, so defaulting to null
+          banned: false, // Defaulting to false since User auth is handled independently
+          banned_until: null,
+        });
+        setProducts(sellerProducts.map(p => ({
+          ...p,
+          price: Number(p.price),
+          created_at: p.createdAt ? p.createdAt.toISOString() : new Date().toISOString()
+        })) as any[]);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
       }
-
-      setProfile(profileData as any);
-      setProducts(((productData as any) ?? []) as UserProduct[]);
-      setLoading(false);
     };
 
     void run();

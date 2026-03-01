@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -15,8 +15,9 @@ import {
   ShoppingCart,
   Menu,
   X,
+  CheckCircle2,
 } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
+// Removed supabase client
 import {
   Dialog,
   DialogContent,
@@ -30,7 +31,7 @@ import { useCart } from "@/context/CartContext";
 
 type UserRole = "admin" | "buyer" | "seller" | null;
 
-type AuthMode = "login" | "signup";
+type AuthMode = "login" | "signup" | "completeProfile";
 
 const headerVariants = {
   hidden: { opacity: 0, y: -10 },
@@ -45,6 +46,7 @@ const LOCAL_KEY = "ownmarket-auth";
 
 export function Header() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { itemCount } = useCart();
   const [userId, setUserId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<UserRole>(null);
@@ -78,36 +80,47 @@ export function Header() {
       }
     }
 
-    const syncFromSupabase = async () => {
-      const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user) {
-        return;
+    const syncFromApi = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const { user } = await res.json();
+          if (user) {
+            setUserId(user.id);
+            setUserRole(user.role);
+            window.localStorage.setItem(
+              LOCAL_KEY,
+              JSON.stringify({ userId: user.id, role: user.role })
+            );
+          }
+        } else {
+          setUserId(null);
+          setUserRole(null);
+          window.localStorage.removeItem(LOCAL_KEY);
+        }
+      } catch (err) {
+        console.error("Auth sync error", err);
       }
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", authData.user.id)
-        .maybeSingle();
-
-      const role = (profile?.role as UserRole) ?? null;
-
-      setUserId(authData.user.id);
-      setUserRole(role);
-      window.localStorage.setItem(
-        LOCAL_KEY,
-        JSON.stringify({ userId: authData.user.id, role })
-      );
     };
 
-    void syncFromSupabase();
+    void syncFromApi();
   }, []);
+
+  // Check for ?setup=true parameter to initiate profile completion
+  useEffect(() => {
+    if (searchParams.get("setup") === "true") {
+      setAuthMode("completeProfile");
+      setIsAuthOpen(true);
+      // Optional: remove query string from URL without reloading
+      router.replace("/");
+    }
+  }, [searchParams, router]);
 
   const handleChange =
     (field: keyof typeof form) =>
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setForm((prev) => ({ ...prev, [field]: e.target.value }));
-    };
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        setForm((prev) => ({ ...prev, [field]: e.target.value }));
+      };
 
   const resetForm = () => {
     setForm({
@@ -119,6 +132,13 @@ export function Header() {
     setError(null);
   };
 
+  // Add this inside the Header component at the top
+  const [discordData, setDiscordData] = useState<{
+    id: string | null;
+    username: string | null;
+    avatar: string | null;
+  }>({ id: null, username: null, avatar: null });
+
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -126,52 +146,54 @@ export function Header() {
 
     try {
       if (authMode === "signup") {
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email: form.email,
-          password: form.password,
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: form.email, password: form.password, username: form.username }),
         });
+        const data = await res.json();
 
-        if (signUpError || !data.user) {
-          throw signUpError ?? new Error("Sign up failed");
+        if (!res.ok) {
+          throw new Error(data.error || "Sign up failed");
         }
 
-        await supabase.from("profiles").upsert({
-          id: data.user.id,
-          username: form.username,
-          discord_handle: form.discordHandle,
-        });
-
         setUserId(data.user.id);
-        setUserRole(null);
+        setUserRole(data.user.role || null);
         window.localStorage.setItem(
           LOCAL_KEY,
-          JSON.stringify({ userId: data.user.id, role: null })
+          JSON.stringify({ userId: data.user.id, role: data.user.role || null })
         );
+      } else if (authMode === "completeProfile") {
+        const res = await fetch('/api/auth/complete-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: form.email, password: form.password, username: form.username }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to complete profile");
+        }
+
+        // After completing profile, user just continues logged in
+        window.location.href = '/dashboard';
       } else {
-        const { data, error: signInError } = await supabase.auth.signInWithPassword(
-          {
-            email: form.email,
-            password: form.password,
-          }
-        );
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: form.email, password: form.password }),
+        });
+        const data = await res.json();
 
-        if (signInError || !data.user) {
-          throw signInError ?? new Error("Login failed");
+        if (!res.ok) {
+          throw new Error(data.error || "Login failed");
         }
 
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", data.user.id)
-          .maybeSingle();
-
-        const role = (profile?.role as UserRole) ?? null;
-
         setUserId(data.user.id);
-        setUserRole(role);
+        setUserRole(data.user.role || null);
         window.localStorage.setItem(
           LOCAL_KEY,
-          JSON.stringify({ userId: data.user.id, role })
+          JSON.stringify({ userId: data.user.id, role: data.user.role || null })
         );
       }
 
@@ -185,7 +207,7 @@ export function Header() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await fetch('/api/auth/login', { method: 'DELETE' });
     window.localStorage.removeItem(LOCAL_KEY);
     setUserId(null);
     setUserRole(null);
@@ -429,74 +451,127 @@ export function Header() {
 
       <Dialog open={isAuthOpen} onOpenChange={setIsAuthOpen}>
         <DialogContent className="w-full max-w-md border-zinc-200 bg-white text-sm text-zinc-800 shadow-2xl">
+
+          {/* ================= HEADER ================= */}
           <DialogHeader>
             <DialogTitle className="text-base">
-              {authMode === "signup" ? "Create your account" : "Welcome back"}
+              {authMode === "signup" && "Create your account"}
+              {authMode === "login" && "Welcome back"}
+              {authMode === "completeProfile" && "Complete your profile"}
             </DialogTitle>
+
             <DialogDescription className="text-xs text-zinc-500">
-              {authMode === "signup"
-                ? "Sign up with your Discord handle and email."
-                : "Log in to access your dashboard."}
+              {authMode === "signup" && "Connect Discord to create an account."}
+              {authMode === "login" && "Log in to access your dashboard."}
+              {authMode === "completeProfile" &&
+                "Set your credentials indicating your email and password."}
             </DialogDescription>
           </DialogHeader>
 
+          {/* ================= FORM ================= */}
           <form onSubmit={handleAuthSubmit} className="mt-2 space-y-3">
+
+            {/* ===== SIGNUP MODE ===== */}
             {authMode === "signup" && (
+              <div className="space-y-3 pt-2">
+                <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+                  Identity Verification
+                </label>
+
+                <Button
+                  type="button"
+                  asChild
+                  className="w-full rounded-xl bg-[#5865F2] py-6 font-bold uppercase tracking-widest text-[10px] transition-all hover:bg-[#4752C4] hover:shadow-lg hover:shadow-indigo-500/20"
+                >
+                  <a href={`/api/auth/discord?userId=pending`}>
+                    Connect Discord Profile
+                  </a>
+                </Button>
+
+                <p className="mt-2 text-[9px] text-center font-medium text-zinc-400 italic">
+                  Connect your Discord to start creating your account.
+                </p>
+              </div>
+            )}
+
+            {/* ===== LOGIN MODE ===== */}
+            {authMode === "login" && (
               <>
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-zinc-700">
-                    Discord handle
+                    Email
                   </label>
                   <input
                     required
-                    value={form.discordHandle}
-                    onChange={handleChange("discordHandle")}
-                    placeholder="e.g. ownmarket#0001"
-                    className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs outline-none ring-0 transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+                    type="email"
+                    value={form.email}
+                    onChange={handleChange("email")}
+                    placeholder="you@example.com"
+                    className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
                   />
                 </div>
+
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-zinc-700">
-                    Username
+                    Password
                   </label>
                   <input
                     required
-                    value={form.username}
-                    onChange={handleChange("username")}
-                    placeholder="Choose a marketplace username"
-                    className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs outline-none ring-0 transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+                    type="password"
+                    value={form.password}
+                    onChange={handleChange("password")}
+                    placeholder="••••••••"
+                    className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
                   />
                 </div>
               </>
             )}
 
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-zinc-700">
-                Email
-              </label>
-              <input
-                required
-                type="email"
-                value={form.email}
-                onChange={handleChange("email")}
-                placeholder="you@example.com"
-                className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs outline-none ring-0 transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-              />
-            </div>
+            {/* ===== COMPLETE PROFILE MODE ===== */}
+            {authMode === "completeProfile" && (
+              <>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+                    Marketplace Username
+                  </label>
+                  <input
+                    required
+                    value={form.username}
+                    onChange={handleChange("username")}
+                    placeholder="Choose your public name"
+                    className="w-full rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm outline-none transition focus:border-black focus:bg-white focus:ring-4 focus:ring-black/5"
+                  />
+                </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-zinc-700">
-                Password
-              </label>
-              <input
-                required
-                type="password"
-                value={form.password}
-                onChange={handleChange("password")}
-                placeholder="••••••••"
-                className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs outline-none ring-0 transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-              />
-            </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-zinc-700">
+                    Email
+                  </label>
+                  <input
+                    required
+                    type="email"
+                    value={form.email}
+                    onChange={handleChange("email")}
+                    placeholder="you@example.com"
+                    className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-zinc-700">
+                    Password
+                  </label>
+                  <input
+                    required
+                    type="password"
+                    value={form.password}
+                    onChange={handleChange("password")}
+                    placeholder="••••••••"
+                    className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+                  />
+                </div>
+              </>
+            )}
 
             {error && (
               <p className="text-xs font-medium text-red-500">
@@ -504,20 +579,25 @@ export function Header() {
               </p>
             )}
 
+            {/* ================= FOOTER ================= */}
             <DialogFooter className="mt-1 gap-2 sm:justify-between">
               <span className="text-[11px] text-zinc-500">
                 {authMode === "signup"
                   ? "Already have an account?"
-                  : "Need an account?"}{" "}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setAuthMode((m) => (m === "signup" ? "login" : "signup"))
-                  }
-                  className="font-medium text-zinc-900 underline-offset-2 hover:underline"
-                >
-                  {authMode === "signup" ? "Log in" : "Sign up"}
-                </button>
+                  : authMode === "completeProfile"
+                    ? ""
+                    : "Need an account?"}{" "}
+                {authMode !== "completeProfile" && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setAuthMode((m) => (m === "signup" ? "login" : "signup"))
+                    }
+                    className="font-medium text-zinc-900 underline-offset-2 hover:underline"
+                  >
+                    {authMode === "signup" ? "Log in" : "Sign up"}
+                  </button>
+                )}
               </span>
 
               <Button
@@ -529,8 +609,10 @@ export function Header() {
                 {loading
                   ? "Please wait..."
                   : authMode === "signup"
-                  ? "Sign up"
-                  : "Log in"}
+                    ? "Next"
+                    : authMode === "completeProfile"
+                      ? "Complete Setup"
+                      : "Log in"}
               </Button>
             </DialogFooter>
           </form>

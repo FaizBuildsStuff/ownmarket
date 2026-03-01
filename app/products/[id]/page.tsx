@@ -3,16 +3,18 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { supabase } from "@/lib/supabaseClient";
+import { fetchProductDetailsAction } from "@/app/actions";
+import { getOrCreateConversationAction } from "@/app/chat-actions";
+import { ChatSidebar } from "@/components/ChatSidebar";
 import {
   ArrowLeft,
   ShieldCheck,
-  MessageCircle,
-  ExternalLink,
+  MessageSquare,
   UserCircle2,
-  CalendarDays,
-  ShoppingBag,
   ShoppingCart,
+  Check,
+  Lock,
+  Zap,
 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
@@ -24,7 +26,6 @@ type ProductDetail = {
   price: number;
   quantity: number;
   description: string | null;
-  discord_channel_link: string | null;
   badge: string | null;
 };
 
@@ -34,293 +35,230 @@ export default function ProductDetailPage() {
   const { addItem, items } = useCart();
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sellerProfile, setSellerProfile] = useState<{
-    username: string | null;
-    discord_handle: string | null;
-    discord_id: string | null;
-    discord_username: string | null;
-    discord_avatar: string | null;
-    created_at: string | null;
-    total_products: number;
-    badge: string | null;
-    banned: boolean;
-    banned_until: string | null;
-  } | null>(null);
+  const [sellerProfile, setSellerProfile] = useState<any>(null);
+
+  // Chat States
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [chatStarting, setChatStarting] = useState(false);
 
   useEffect(() => {
-    const fetchProduct = async () => {
-      const { data } = await supabase
-        .from("products")
-        .select(
-          "id, seller_id, name, price, quantity, description, discord_channel_link, badge"
-        )
-        .eq("id", params.id)
-        .maybeSingle();
+    const fetchData = async () => {
+      try {
+        const data = await fetchProductDetailsAction(params.id as string);
+        if (!data || !data.product) {
+          router.push("/");
+          return;
+        }
 
-      if (!data) {
-        router.push("/");
-        return;
+        const { product: prod, seller } = data;
+
+        setProduct({
+          id: prod.id,
+          seller_id: prod.sellerId,
+          name: prod.name,
+          price: Number(prod.price),
+          quantity: prod.quantity,
+          description: prod.description,
+          badge: prod.badge,
+        });
+
+        // Also fetch the current user to know who the buyer is
+        fetch('/api/auth/me')
+          .then(res => res.json())
+          .then(userData => {
+            if (userData?.user?.id) {
+              setCurrentUserId(userData.user.id);
+            }
+          })
+          .catch(() => { });
+
+        if (seller) {
+          setSellerProfile({
+            ...seller,
+            discord_id: seller.discordId,
+            discord_avatar: seller.discordAvatar,
+            discord_username: seller.discordUsername,
+          });
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
       }
-
-      const prod = data as ProductDetail;
-      setProduct(prod);
-
-      const [{ data: profile }, { count }] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("username, discord_handle, discord_id, discord_username, discord_avatar, created_at, badge, banned, banned_until")
-          .eq("id", prod.seller_id)
-          .maybeSingle(),
-        supabase
-          .from("products")
-          .select("*", { head: true, count: "exact" })
-          .eq("seller_id", prod.seller_id),
-      ]);
-
-      setSellerProfile({
-        username: (profile as any)?.username ?? null,
-        discord_handle: (profile as any)?.discord_handle ?? null,
-        discord_id: (profile as any)?.discord_id ?? null,
-        discord_username: (profile as any)?.discord_username ?? null,
-        discord_avatar: (profile as any)?.discord_avatar ?? null,
-        created_at: (profile as any)?.created_at ?? null,
-        total_products: count ?? 0,
-        badge: (profile as any)?.badge ?? null,
-        banned: (profile as any)?.banned ?? false,
-        banned_until: (profile as any)?.banned_until ?? null,
-      });
-
-      setLoading(false);
     };
 
-    void fetchProduct();
+    if (params.id) fetchData();
   }, [params.id, router]);
 
   if (loading || !product) {
-    return (
-      <div className="mx-auto flex min-h-[calc(100vh-120px)] w-full max-w-5xl flex-col gap-4 px-6 py-8 lg:px-10 lg:py-12">
-        <p className="text-sm text-zinc-500">Loading product...</p>
-      </div>
-    );
+    return <div className="p-20 text-center font-medium">Loading...</div>;
   }
 
+  // Proper Discord Avatar Link
+  const avatarUrl = sellerProfile?.discord_id && sellerProfile?.discord_avatar
+    ? `https://cdn.discordapp.com/avatars/${sellerProfile.discord_id}/${sellerProfile.discord_avatar}.png`
+    : null;
+
+  const handleOpenChat = async () => {
+    if (!currentUserId) {
+      alert("Please log in to chat with the seller.");
+      return;
+    }
+
+    if (currentUserId === product.seller_id) {
+      alert("You cannot chat with yourself on your own product.");
+      return;
+    }
+
+    setChatStarting(true);
+    try {
+      const conv = await getOrCreateConversationAction(product.seller_id, product.id);
+      setConversationId(conv.id);
+      setIsChatOpen(true);
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Failed to start chat.");
+    } finally {
+      setChatStarting(false);
+    }
+  };
+
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-120px)] w-full max-w-5xl flex-col gap-6 px-6 py-8 lg:px-10 lg:py-12">
-      <div className="flex items-center justify-between gap-2">
+    <div className="min-h-screen bg-white text-zinc-900">
+      <div className="mx-auto max-w-6xl px-6 py-10">
+
+        {/* BACK BUTTON */}
         <button
           onClick={() => router.back()}
-          className="inline-flex items-center gap-2 text-xs text-zinc-500 hover:text-zinc-800"
+          className="mb-10 flex items-center gap-2 text-sm font-bold text-zinc-400 hover:text-black transition-colors"
         >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back to marketplace
+          <ArrowLeft className="h-4 w-4" /> Back to Shop
         </button>
-      </div>
 
-      <div className="grid gap-6 md:grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)]">
-        <section className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-6 text-sm text-zinc-800 shadow-[0_22px_55px_rgba(15,23,42,0.08)]">
-          <header className="space-y-3">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-[0.18em] text-zinc-500">
-                  Listing
-                </p>
-                <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-900">
-                  {product.name}
-                </h1>
-                {product.badge && (
-                  <span className="mt-1.5 inline-block rounded bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
-                    {product.badge}
-                  </span>
-                )}
-              </div>
-              <div className="text-right">
-                <span className="inline-flex items-center rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-semibold text-zinc-50">
-                  ${product.price.toFixed(2)}
-                </span>
-                {product.quantity === 0 ? (
-                  <p className="mt-1 text-[11px] font-medium text-amber-600">
-                    Out of stock
-                  </p>
-                ) : (
-                  <p className="mt-1 text-[11px] text-zinc-500">
-                    {product.quantity} in stock
-                  </p>
-                )}
-              </div>
-            </div>
-            <p className="text-xs text-zinc-500">
-              <ShieldCheck className="mr-1 inline h-3 w-3 text-emerald-500" />
-              This listing is traded through OwnMarket&apos;s Discord marketplace.
-              Always follow staff instructions and use escrow for safety.
-            </p>
-          </header>
+        <div className="grid grid-cols-1 gap-16 lg:grid-cols-[1fr_360px]">
 
-          <div className="space-y-4 text-xs text-zinc-700">
-            <div>
-              <p className="mb-1 text-[11px] font-medium text-zinc-900">
-                What you&apos;re getting
-              </p>
-              <p className="whitespace-pre-line text-zinc-600">
-                {product.description ||
-                  "Seller has not added a description yet. Ask for full details in the Discord channel before trading."}
+          {/* MAIN SECTION */}
+          <main className="space-y-12">
+            <header className="space-y-4">
+              <div className="inline-block rounded-full bg-zinc-100 px-4 py-1 text-[10px] font-bold uppercase tracking-widest">
+                {product.badge || "Verified Item"}
+              </div>
+              <h1 className="text-5xl font-bold tracking-tight md:text-6xl italic">
+                {product.name}
+              </h1>
+            </header>
+
+            <div className="space-y-4 border-t border-zinc-100 pt-10">
+              <h2 className="text-xl font-bold">About this item</h2>
+              <p className="text-lg leading-relaxed text-zinc-500">
+                {product.description || "The seller hasn't added a description yet. Use the chat to ask for details."}
               </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl bg-zinc-50 p-3 text-[11px] text-zinc-600">
-                <p className="mb-1 flex items-center gap-1 text-[11px] font-medium text-zinc-900">
-                  <ShoppingBag className="h-3.5 w-3.5 text-indigo-500" />
-                  Trade flow
-                </p>
-                <p>
-                  Coordinate in the seller&apos;s Discord channel, confirm terms with
-                  staff, then complete the trade using the agreed escrow flow.
-                </p>
+            {/* TRUST BOXES - SIMPLE WORDS */}
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div className="rounded-3xl bg-zinc-50 p-8">
+                <ShieldCheck className="mb-4 h-6 w-6 text-black" />
+                <h3 className="font-bold">Money-Back Guarantee</h3>
+                <p className="text-sm text-zinc-500 mt-2">We hold your money safely until you get your item. If they don't deliver, you get a refund.</p>
               </div>
-              <div className="rounded-xl bg-zinc-50 p-3 text-[11px] text-zinc-600">
-                <p className="mb-1 flex items-center gap-1 text-[11px] font-medium text-zinc-900">
-                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-                  Safety tips
-                </p>
-                <p>
-                  Never trade in DMs without staff. Always verify the staff tag and
-                  don&apos;t click unknown links outside official channels.
-                </p>
+              <div className="rounded-3xl bg-zinc-50 p-8">
+                <Zap className="mb-4 h-6 w-6 text-black" />
+                <h3 className="font-bold">Instant Access</h3>
+                <p className="text-sm text-zinc-500 mt-2">Most items are delivered right after you pay. No waiting around for days.</p>
               </div>
             </div>
-          </div>
+          </main>
 
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
-            {product.quantity > 0 && (
-              <>
+          {/* SIDEBAR - ACTION AREA */}
+          <aside className="space-y-6">
+            <div className="rounded-[2rem] border border-zinc-100 bg-white p-8 shadow-2xl shadow-zinc-200/50">
+              <div className="mb-8">
+                <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Price</p>
+                <p className="text-5xl font-bold tracking-tighter">${product.price.toLocaleString()}</p>
+              </div>
+
+              <div className="space-y-3">
                 <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="rounded-full border-zinc-200"
                   onClick={() => addItem(product.id, 1, product.quantity)}
+                  className="w-full rounded-2xl py-7 text-sm font-bold uppercase tracking-widest bg-black text-white hover:bg-zinc-800"
                 >
                   <ShoppingCart className="mr-2 h-4 w-4" />
-                  Add to cart
-                  {(items[product.id] ?? 0) > 0 && (
-                    <span className="ml-1.5 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700">
-                      {(items[product.id] ?? 0)} in cart
-                    </span>
-                  )}
+                  {items[product.id] ? "In your cart" : "Add to Cart"}
                 </Button>
-                {product.discord_channel_link && (
-                  <Link
-                    href={product.discord_channel_link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-xs font-medium text-indigo-50 shadow-sm transition hover:bg-indigo-500"
-                  >
-                    <MessageCircle className="h-4 w-4" />
-                    Open Discord channel
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </Link>
-                )}
-              </>
-            )}
-            {product.quantity === 0 && (
-              <p className="rounded-full bg-amber-50 px-3 py-1.5 text-[11px] font-medium text-amber-700">
-                Out of stock — contact seller to ask about restock
-              </p>
-            )}
-            <p className="text-[11px] text-zinc-500">
-              Contact staff in the main Discord if anything feels off, and never
-              trade outside official channels.
-            </p>
-          </div>
-        </section>
 
-        <aside className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 text-xs text-zinc-700 shadow-[0_18px_45px_rgba(15,23,42,0.06)]">
-          <div className="mb-2 flex items-center gap-3">
-            {sellerProfile?.discord_id && sellerProfile?.discord_avatar ? (
-              <img
-                src={`https://cdn.discordapp.com/avatars/${sellerProfile.discord_id}/${sellerProfile.discord_avatar}.png?size=80`}
-                alt=""
-                className="h-12 w-12 rounded-full border border-zinc-200"
-              />
-            ) : (
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100">
-                <UserCircle2 className="h-6 w-6 text-zinc-400" />
+                <Button
+                  variant="outline"
+                  className="w-full rounded-2xl py-7 text-sm font-bold uppercase tracking-widest border-zinc-200"
+                  onClick={handleOpenChat}
+                  disabled={chatStarting}
+                >
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  {chatStarting ? "Starting..." : "Chat with Seller"}
+                </Button>
               </div>
-            )}
-            <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-500">
-                Seller
-              </p>
-              <Link
-                href={`/users/${product.seller_id}`}
-                className="text-sm font-semibold text-zinc-900 hover:underline"
-              >
-                {sellerProfile?.discord_username ? `@${sellerProfile.discord_username}` : sellerProfile?.username || "Unknown seller"}
-              </Link>
-              {sellerProfile?.badge && (
-                <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">{sellerProfile.badge}</span>
-              )}
-              {sellerProfile && (sellerProfile.banned || (sellerProfile.banned_until && new Date(sellerProfile.banned_until) > new Date())) && (
-                <p className="mt-1 text-[11px] font-medium text-amber-600">Seller currently restricted</p>
-              )}
-            </div>
-          </div>
 
-          <div className="space-y-2 text-[11px] text-zinc-600">
-            {sellerProfile?.discord_handle && !sellerProfile?.discord_username && (
-              <p>
-                Discord:{" "}
-                <span className="font-medium text-zinc-800">
-                  {sellerProfile.discord_handle}
-                </span>
-              </p>
-            )}
-            {sellerProfile?.created_at && (
-              <p className="flex items-center gap-1">
-                <CalendarDays className="h-3.5 w-3.5 text-zinc-500" />
-                Onboarded{" "}
-                {new Date(sellerProfile.created_at).toLocaleDateString()}
-              </p>
-            )}
-            <p className="flex items-center gap-1">
-              <ShoppingBag className="h-3.5 w-3.5 text-zinc-500" />
-              {sellerProfile?.total_products ?? 0} active listing
-              {(sellerProfile?.total_products ?? 0) === 1 ? "" : "s"}
-            </p>
-          </div>
+              {/* SELLER CARD */}
+              <div className="mt-10 pt-10 border-t border-zinc-50">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 overflow-hidden rounded-full bg-zinc-100 ring-2 ring-zinc-50">
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt="Seller" className="h-full w-full object-cover" />
+                    ) : (
+                      <UserCircle2 className="h-full w-full text-zinc-300" />
+                    )}
+                  </div>
+                  <div>
+                    <Link href={`/users/${product.seller_id}`} className="block font-bold hover:underline">
+                      {sellerProfile?.discord_username || sellerProfile?.username || "Verified Seller"}
+                    </Link>
+                    <p className="text-[10px] font-bold text-green-500 uppercase tracking-widest">Online Now</p>
+                  </div>
+                </div>
 
-          {/* Contact seller - buyers */}
-          {(sellerProfile?.discord_id || product.discord_channel_link) && (
-            <div className="pt-3 border-t border-zinc-200">
-              <p className="mb-2 text-[11px] font-medium text-zinc-900">Contact seller</p>
-              {sellerProfile?.discord_id ? (
-                <a
-                  href={`https://discord.com/users/${sellerProfile.discord_id}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-indigo-600 px-4 py-2.5 text-xs font-medium text-white shadow-sm transition hover:bg-indigo-500"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  Contact on Discord
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </a>
-              ) : product.discord_channel_link ? (
-                <Link
-                  href={product.discord_channel_link}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-indigo-600 px-4 py-2.5 text-xs font-medium text-white shadow-sm transition hover:bg-indigo-500"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  Open seller channel
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </Link>
-              ) : null}
+                <div className="mt-6 space-y-2 rounded-2xl bg-zinc-50 p-4">
+                  <div className="flex justify-between text-[10px] font-bold uppercase text-zinc-400">
+                    <span>Seller ID</span>
+                    <span className="text-zinc-900 tracking-tighter">{sellerProfile?.discord_id || "Private"}</span>
+                  </div>
+                  <div className="flex justify-between text-[10px] font-bold uppercase text-zinc-400">
+                    <span>Status</span>
+                    <span className="text-zinc-900">Verified</span>
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
-        </aside>
+
+            {/* SECURITY WARNING - DIRECT WORDS */}
+            <div className="flex items-center gap-3 rounded-2xl bg-black p-5 text-white">
+              <Lock className="h-5 w-5 text-zinc-400 shrink-0" />
+              <p className="text-[10px] leading-relaxed font-medium">
+                Keep your chat on this site. If you move to Discord or Telegram, we cannot help you if you get scammed.
+              </p>
+            </div>
+          </aside>
+
+        </div>
       </div>
+
+      <ChatSidebar
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        conversationId={conversationId}
+        currentUserId={currentUserId}
+        otherUser={{
+          id: product.seller_id,
+          username: sellerProfile?.username,
+          discordUsername: sellerProfile?.discord_username,
+          discordAvatar: sellerProfile?.discord_avatar,
+          discordId: sellerProfile?.discord_id,
+        }}
+        status="open"
+        productName={product.name}
+        isBuyer={true}
+      />
     </div>
   );
 }
-
