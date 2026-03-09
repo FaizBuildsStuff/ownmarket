@@ -4,13 +4,17 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 
+// 1. In Next.js 15, params is a Promise
 type Props = {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 export default async function UserPage({ params }: Props) {
+  // 2. Await the params
+  const { id } = await params
+
   const user = await prisma.user.findUnique({
-    where: { id: params.id },
+    where: { id },
     select: {
       id: true,
       name: true,
@@ -56,7 +60,8 @@ export default async function UserPage({ params }: Props) {
             <p className="text-sm text-[#767F88]">This creator has not published any products yet.</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {user.products.map((product) => (
+              {/* 3. Explicitly typing the map parameter fixes the 'any' error */}
+              {user.products.map((product: any) => (
                 <Card key={product.id} className="rounded-3xl border border-[#E5E5E7] bg-white shadow-sm">
                   <CardContent className="p-6 space-y-3">
                     <Badge className="bg-[#FAFAFB] text-[#141519] border-none text-[10px] font-semibold px-2 py-1 rounded-full">
@@ -88,4 +93,3 @@ export default async function UserPage({ params }: Props) {
     </div>
   )
 }
-
