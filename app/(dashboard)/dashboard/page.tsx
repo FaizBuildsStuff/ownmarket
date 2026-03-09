@@ -16,12 +16,25 @@ import {
   Settings,
   Star,
   ArrowDownToLine,
-  Box
+  Box,
+  Trash2
 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
+
+// --- SHADCN ALERT DIALOG IMPORTS ---
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 type UserRole = "ADMIN" | "SELLER" | "BUYER"
 
@@ -79,6 +92,11 @@ export default function DashboardPage() {
   const [loadingUser, setLoadingUser] = useState(true)
   const [sellerProducts, setSellerProducts] = useState<Product[]>([])
   const [creating, setCreating] = useState(false)
+  
+  // --- STATE FOR SHADCN ALERT ---
+  const [productToDelete, setProductToDelete] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
   const [newProduct, setNewProduct] = useState({
     title: "",
     price: "",
@@ -152,18 +170,23 @@ export default function DashboardPage() {
     }
   }
 
-  const handleDeleteProduct = async (id: string) => {
-    if (!confirm("Delete this product?")) return
+  // --- UPDATED DELETE LOGIC FOR SHADCN ---
+  const handleConfirmDelete = async () => {
+    if (!productToDelete) return
+    setIsDeleting(true)
     try {
-      const res = await fetch(`/api/products/${id}`, { method: "DELETE" })
-      const data = await res.json().catch(() => ({}))
+      const res = await fetch(`/api/products/${productToDelete}`, { method: "DELETE" })
       if (res.ok) {
-        setSellerProducts((prev) => prev.filter((p) => p.id !== id))
+        setSellerProducts((prev) => prev.filter((p) => p.id !== productToDelete))
       } else {
+        const data = await res.json().catch(() => ({}))
         alert(data.message || "Could not delete product")
       }
     } catch {
       alert("Could not delete product")
+    } finally {
+      setIsDeleting(false)
+      setProductToDelete(null)
     }
   }
 
@@ -205,6 +228,29 @@ export default function DashboardPage() {
   return (
     <div ref={containerRef} className="min-h-screen bg-[#FAFAFB] flex selection:bg-[#48E44B]/30 font-sans">
       
+      {/* SHADCN ALERT DIALOG COMPONENT */}
+      <AlertDialog open={!!productToDelete} onOpenChange={(open) => !open && setProductToDelete(null)}>
+        <AlertDialogContent className="rounded-[32px] border-none p-8 max-w-[420px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-2xl font-bold tracking-tight text-[#141519]">
+              Are you absolutely sure?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-[#767F88] font-medium mt-2">
+              This will permanently delete your product from the marketplace. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-8 gap-3">
+            <AlertDialogCancel className="h-12 rounded-xl border-gray-100 font-bold text-sm">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmDelete}
+              className="h-12 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-sm shadow-lg shadow-red-500/20"
+            >
+              {isDeleting ? "Deleting..." : "Delete Product"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* 1. MINIMALIST SIDEBAR */}
       <aside className="hidden lg:flex w-72 flex-col border-r border-gray-100 bg-white/50 backdrop-blur-xl p-8 sticky top-0 h-screen">
         <div className="flex items-center gap-2 mb-12">
@@ -370,7 +416,8 @@ export default function DashboardPage() {
                             variant="outline"
                             size="sm"
                             className="h-9 rounded-xl text-xs text-red-500 border-red-200 hover:bg-red-50"
-                            onClick={() => handleDeleteProduct(item.id)}
+                            // --- UPDATED TO TRIGGER SHADCN MODAL ---
+                            onClick={() => setProductToDelete(item.id)}
                           >
                             Delete
                           </Button>
