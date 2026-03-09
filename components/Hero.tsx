@@ -101,15 +101,16 @@ export default function Hero() {
                 {/* CTA */}
                 <div className="hero-cta mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-5">
 
+                    <Link href="/marketplace">
                     <Button
                         size="lg"
                         className="h-12 rounded-xl bg-[#141519] px-7 text-[15px] text-white hover:bg-black"
                     >
                         Explore Marketplace
-                    </Button>
+                    </Button></Link>
 
                     <Link
-                        href="/sell"
+                        href="/signup"
                         className="text-[15px] text-[#767F88] transition hover:text-[#141519]"
                     >
                         Start selling →

@@ -100,13 +100,6 @@ export default function Categories() {
               <p className="mt-2 text-sm text-[#767F88] leading-relaxed">
                 {cat.description}
               </p>
-
-              {/* browse link */}
-              <div className="mt-6 flex items-center text-sm font-medium text-[#141519] transition-all duration-300 group-hover:translate-x-1">
-                Browse category
-                <ArrowUpRight size={16} className="ml-1" />
-              </div>
-
             </Card>
           )
         })}
