@@ -15,6 +15,7 @@ import {
   RefreshCw,
   MoreHorizontal
 } from "lucide-react"
+import { ProductPurchaseActions } from "@/components/ProductPurchaseActions"
 
 type Props = {
   params: Promise<{ id: string }>
@@ -117,15 +118,15 @@ export default async function ProductPage({ params }: Props) {
                   <span className="text-2xl font-bold text-[#767F88]">.00</span>
                 </div>
              </div>
-             <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
-                <Button variant="outline" className="h-20 w-20 rounded-[24px] border-gray-100 hover:bg-gray-50 shrink-0">
-                   <MessageSquare size={24} />
-                </Button>
-                <Button className="h-20 px-14 rounded-[24px] bg-[#141519] text-white font-bold text-xl hover:bg-black transition-all hover:scale-[1.02] shadow-2xl shadow-black/10 group">
-                   Buy Asset
-                   <ArrowRight className="ml-3 h-6 w-6 transition-transform group-hover:translate-x-1" />
-                </Button>
-             </div>
+             <ProductPurchaseActions
+               id={product.id}
+               title={product.title}
+               price={product.price}
+               image={product.image}
+               category={product.category}
+               sellerId={product.sellerId}
+               sellerName={product.seller?.name}
+             />
           </div>
 
           {/* BENTO SPECS */}

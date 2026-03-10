@@ -4,8 +4,9 @@ import { useState, useLayoutEffect, useRef, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { gsap } from "gsap"
-import { Menu, X, ArrowUpRight } from "lucide-react"
+import { Menu, X, ArrowUpRight, ShoppingBag } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import CartDrawer from "./CartDrawer"
 
 type MinimalUser = {
   id: string
@@ -41,19 +42,17 @@ export default function Header() {
         defaults: { ease: "expo.out", opacity: 0 } 
       });
 
-      // 1. Reveal Header Shell
       tl.from(headerRef.current, {
         y: -100,
         opacity: 0,
         duration: 1.2,
       })
-      // 2. Pop in Nav Items & the CTA Button specifically
       .from(".nav-item", {
         y: -20,
         opacity: 0,
         duration: 0.8,
         stagger: 0.1,
-        clearProps: "all" // CRITICAL: This removes GSAP styles after it finishes
+        clearProps: "all"
       }, "-=0.6");
 
     }, headerRef)
@@ -100,31 +99,30 @@ export default function Header() {
         </nav>
 
         {/* Right side Actions */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4">
+          
+          {/* THE CART SYSTEM */}
+          <div className="nav-item">
+            <CartDrawer />
+          </div>
+
           {user ? (
             <>
               <Button
                 variant="outline"
                 size="sm"
-                className="nav-item hidden text-[14px] font-bold md:inline-flex"
+                className="nav-item hidden text-[14px] font-bold md:inline-flex rounded-xl"
                 onClick={() => router.push("/dashboard")}
               >
                 Dashboard
               </Button>
               <Button
                 size="sm"
-                className="nav-item group flex h-11 rounded-[14px] bg-black px-6 text-[14px] font-bold text-white transition-all hover:bg-[#1a1a1a] hover:shadow-xl active:scale-95 z-10"
+                className="nav-item group flex h-11 rounded-[14px] bg-black px-6 text-[14px] font-bold text-white transition-all hover:bg-[#1a1a1a] hover:shadow-xl active:scale-95"
                 onClick={async () => {
-                  try {
-                    await fetch("/api/auth/signout", { method: "POST" })
-                    if (typeof window !== "undefined") {
-                      window.localStorage.removeItem("om_logged_in")
-                    }
-                    setUser(null)
-                    router.push("/signin")
-                  } catch {
-                    // ignore
-                  }
+                  await fetch("/api/auth/signout", { method: "POST" })
+                  setUser(null)
+                  router.push("/signin")
                 }}
               >
                 Sign out
@@ -139,11 +137,10 @@ export default function Header() {
                 Sign in
               </Link>
 
-              {/* THE BUTTON: Optimized for visibility */}
               <Link href="/signup">
                 <Button
                   size="sm"
-                  className="nav-item group flex h-11 rounded-[14px] bg-black px-6 text-[14px] font-bold text-white transition-all hover:bg-[#1a1a1a] hover:shadow-xl active:scale-95 z-10"
+                  className="nav-item group flex h-11 rounded-[14px] bg-black px-6 text-[14px] font-bold text-white transition-all hover:bg-[#1a1a1a] hover:shadow-xl active:scale-95"
                 >
                   <span className="hidden sm:inline">Get Started</span>
                   <span className="sm:hidden">Join</span>
@@ -163,7 +160,7 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Mobile Drawer (Refined Design) */}
+      {/* Mobile Drawer */}
       {isOpen && (
         <div className="absolute left-4 right-4 top-[90px] z-[101] rounded-[32px] border border-white/20 bg-white/95 p-8 backdrop-blur-2xl shadow-2xl lg:hidden">
           <div className="flex flex-col gap-6">
@@ -180,7 +177,7 @@ export default function Header() {
             <div className="h-px w-full bg-black/5" />
             <div className="flex flex-col gap-4">
               <Link href="/signin" className="text-center font-bold text-[#767F88] py-2">Sign in</Link>
-              <Button className="w-full h-14 rounded-2xl bg-black text-lg font-bold shadow-lg shadow-black/10">
+              <Button className="w-full h-14 rounded-2xl bg-black text-lg font-bold">
                 Create Account
               </Button>
             </div>

@@ -11,7 +11,8 @@ import {
   User as UserIcon,
   LogOut,
   Zap,
-  ShieldCheck
+  ShieldCheck,
+  MessageSquare // Added for the Seller Chat button
 } from 'lucide-react'
 import { Input } from "@/components/ui/input"
 import {
@@ -29,7 +30,7 @@ export default function AdminHeader() {
   const pathname = usePathname()
   const router = useRouter()
   const [scrolled, setScrolled] = useState(false)
-  const [user, setUser] = useState<{ name: string; email: string; image?: string; role: string } | null>(null)
+  const [user, setUser] = useState<{ id: string; name: string; email: string; image?: string; role: string } | null>(null)
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -65,6 +66,17 @@ export default function AdminHeader() {
 
   const segments = pathname.split('/').filter(Boolean)
 
+  // Logic to open the global Chat Widget for Sellers
+  const openSellerChat = () => {
+    // This dispatches a custom event that your ChatWidget listens to
+    // or you can route them to a dedicated /dashboard/messages page
+    toast.info("Opening Seller Inbox", {
+      description: "Loading your active buyer threads..."
+    })
+    // router.push("/dashboard/messages") // Option A: Dedicated Page
+    window.dispatchEvent(new CustomEvent('toggleChatWidget')); // Option B: Global Popup
+  }
+
   return (
     <header className={`sticky top-0 z-40 w-full transition-all duration-500 border-b ${
       scrolled 
@@ -76,14 +88,11 @@ export default function AdminHeader() {
         {/* LEFT: INTERACTIVE BREADCRUMBS */}
         <div className="flex items-center gap-4">
           <div className="hidden md:flex items-center gap-2 text-[10px] font-black text-[#767F88] uppercase tracking-[0.2em]">
-            
-            {/* Clickable Root */}
             <Link href="/dashboard" className="hover:text-black transition-colors">
               OWNMARKET
             </Link>
 
             {segments.map((segment, i) => {
-              // Construct URL up to this segment
               const url = `/${segments.slice(0, i + 1).join('/')}`
               const isLast = i === segments.length - 1
 
@@ -120,10 +129,25 @@ export default function AdminHeader() {
             </div>
           </div>
 
-          <button className="relative p-2 text-gray-400 hover:text-black transition-colors group">
-            <Bell size={20} strokeWidth={2} />
-            <span className="absolute top-2 right-2 h-1.5 w-1.5 bg-[#48E44B] rounded-full ring-2 ring-white group-hover:animate-ping" />
-          </button>
+          <div className="flex items-center gap-2">
+            {/* --- SELLER CHAT INBOX BUTTON --- */}
+            {(user?.role === "SELLER" || user?.role === "ADMIN") && (
+              <button 
+                onClick={openSellerChat}
+                className="relative p-2 text-gray-400 hover:text-black transition-colors group"
+                title="Seller Messages"
+              >
+                <MessageSquare size={20} strokeWidth={2} />
+                <span className="absolute top-2 right-2 h-1.5 w-1.5 bg-blue-500 rounded-full ring-2 ring-white" />
+              </button>
+            )}
+
+            {/* NOTIFICATIONS */}
+            <button className="relative p-2 text-gray-400 hover:text-black transition-colors group">
+              <Bell size={20} strokeWidth={2} />
+              <span className="absolute top-2 right-2 h-1.5 w-1.5 bg-[#48E44B] rounded-full ring-2 ring-white group-hover:animate-ping" />
+            </button>
+          </div>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

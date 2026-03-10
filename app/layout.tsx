@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import Header from "@/components/header";
-import Footer from "@/components/footer";
+import { CartProvider } from "@/app/context/CartContext";
 
 const andersonGrotesk = localFont({
   src: [
@@ -37,10 +36,11 @@ export default function RootLayout({
         className="min-h-screen bg-[#FAFAFB] font-sans text-[#141519] antialiased selection:bg-[#48E44B]/30"
         suppressHydrationWarning
       >
-        
-        <main className="relative flex flex-col">
-          {children}
-        </main>
+        <CartProvider>
+          <main className="relative flex flex-col">
+            {children}
+          </main>
+        </CartProvider>
       </body>
     </html>
   );
