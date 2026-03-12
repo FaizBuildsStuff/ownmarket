@@ -40,7 +40,6 @@ export default function CartPage() {
 
   const handleConfirmSync = () => {
     setIsSyncing(true)
-    // Simulated "Node Handshake" delay
     setTimeout(() => {
       setIsSyncing(false)
       setShowPaymentModal(true)
@@ -69,7 +68,6 @@ export default function CartPage() {
   return (
     <div className="min-h-screen bg-[#FAFAFB] selection:bg-[#48E44B]/30 font-sans antialiased">
       
-      {/* 1. PAYMENTS COMING SOON MODAL */}
       <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
         <DialogContent className="sm:max-w-[440px] rounded-[48px] border-none p-12 bg-white/90 backdrop-blur-3xl shadow-2xl">
           <DialogHeader className="flex flex-col items-center text-center">
@@ -99,7 +97,6 @@ export default function CartPage() {
         </DialogContent>
       </Dialog>
 
-      {/* FIXED ACTION: RETURN */}
       <div className="fixed top-12 left-12 z-50">
         <Link href="/marketplace">
           <button className="group flex items-center gap-4">
@@ -114,7 +111,6 @@ export default function CartPage() {
       <main className="max-w-[1400px] mx-auto px-12 py-24 min-h-screen flex items-center">
         <div className="w-full flex flex-col lg:flex-row gap-16 items-start justify-center">
           
-          {/* LEFT: CENTERED INVENTORY CANVAS */}
           <div className="w-full lg:max-w-[700px] space-y-12 animate-in slide-in-from-left-8 duration-700">
             <div className="space-y-4">
               <div className="flex items-center gap-3">
@@ -144,11 +140,14 @@ export default function CartPage() {
                         {item.title}
                       </h3>
                       <div className="flex items-center gap-2">
-                        <ChatWidget 
-                          productId={item.id} 
-                          sellerId={item.sellerId} 
-                          sellerName={item.sellerName} 
-                        />
+                        {/* FIX: Check if sellerId exists before rendering widget */}
+                        {item.sellerId && (
+                          <ChatWidget 
+                            productId={item.id} 
+                            sellerId={item.sellerId} 
+                            sellerName={item.sellerName} 
+                          />
+                        )}
                         <button 
                           onClick={() => removeFromCart(item.id)}
                           className="p-2 text-gray-200 hover:text-red-500 transition-colors"
@@ -168,7 +167,6 @@ export default function CartPage() {
             </div>
           </div>
 
-          {/* RIGHT: FLOATING SUMMARY TERMINAL */}
           <aside className="w-full lg:w-[460px] lg:sticky lg:top-24 animate-in slide-in-from-right-8 duration-700">
             <div className="p-12 rounded-[48px] bg-white border border-gray-100 shadow-[0_50px_100px_-30px_rgba(0,0,0,0.06)] space-y-10">
               <div className="flex items-center justify-between">
