@@ -4,20 +4,21 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { gsap } from 'gsap'
-import { 
-  Download, 
-  ExternalLink, 
-  Clock, 
-  ShieldCheck, 
-  Search, 
-  LayoutDashboard, 
-  ShoppingBag, 
+import {
+  Download,
+  ExternalLink,
+  Clock,
+  ShieldCheck,
+  Search,
+  LayoutDashboard,
+  ShoppingBag,
   CreditCard,
   Settings,
   Star,
   ArrowDownToLine,
   Box,
-  Trash2
+  Trash2,
+  MessageSquare
 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -54,29 +55,29 @@ type Product = {
 }
 
 const purchases = [
-  { 
-    id: 1, 
-    title: "Next.js SaaS Starter Kit", 
-    price: "$49", 
-    date: "March 2, 2026", 
+  {
+    id: 1,
+    title: "Next.js SaaS Starter Kit",
+    price: "$49",
+    date: "March 2, 2026",
     version: "v2.4.0",
     image: "https://images.unsplash.com/photo-1555066931-4365d14bab8c",
     category: "Template"
   },
-  { 
-    id: 2, 
-    title: "Modern Landing Pages Pack", 
-    price: "$19", 
-    date: "Feb 28, 2026", 
+  {
+    id: 2,
+    title: "Modern Landing Pages Pack",
+    price: "$19",
+    date: "Feb 28, 2026",
     version: "v1.1.0",
     image: "https://images.unsplash.com/photo-1498050108023-c5249f4df085",
     category: "Design"
   },
-  { 
-    id: 3, 
-    title: "Framer Motion Animations", 
-    price: "$32", 
-    date: "Jan 15, 2026", 
+  {
+    id: 3,
+    title: "Framer Motion Animations",
+    price: "$32",
+    date: "Jan 15, 2026",
     version: "v3.0.1",
     image: "https://images.unsplash.com/photo-1550439062-609e1531270e",
     category: "Animation"
@@ -84,7 +85,7 @@ const purchases = [
 ]
 
 export default function DashboardPage() {
-  
+
   const containerRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const [activeTab, setActiveTab] = useState("purchases")
@@ -92,7 +93,7 @@ export default function DashboardPage() {
   const [loadingUser, setLoadingUser] = useState(true)
   const [sellerProducts, setSellerProducts] = useState<Product[]>([])
   const [creating, setCreating] = useState(false)
-  
+
   // --- STATE FOR SHADCN ALERT ---
   const [productToDelete, setProductToDelete] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -200,18 +201,18 @@ export default function DashboardPage() {
         duration: 0.8,
         stagger: 0.05
       })
-      .from(".dashboard-header", {
-        y: 20,
-        opacity: 0,
-        duration: 1
-      }, "-=0.6")
-      .from(".purchase-card", {
-        scale: 0.95,
-        opacity: 0,
-        duration: 0.8,
-        stagger: 0.1,
-        clearProps: "all"
-      }, "-=0.6")
+        .from(".dashboard-header", {
+          y: 20,
+          opacity: 0,
+          duration: 1
+        }, "-=0.6")
+        .from(".purchase-card", {
+          scale: 0.95,
+          opacity: 0,
+          duration: 0.8,
+          stagger: 0.1,
+          clearProps: "all"
+        }, "-=0.6")
     }, containerRef)
 
     return () => ctx.revert()
@@ -227,7 +228,7 @@ export default function DashboardPage() {
 
   return (
     <div ref={containerRef} className="min-h-screen bg-[#FAFAFB] flex selection:bg-[#48E44B]/30 font-sans">
-      
+
       {/* SHADCN ALERT DIALOG COMPONENT */}
       <AlertDialog open={!!productToDelete} onOpenChange={(open) => !open && setProductToDelete(null)}>
         <AlertDialogContent className="rounded-[32px] border-none p-8 max-w-[420px]">
@@ -241,7 +242,7 @@ export default function DashboardPage() {
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-8 gap-3">
             <AlertDialogCancel className="h-12 rounded-xl border-gray-100 font-bold text-sm">Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={handleConfirmDelete}
               className="h-12 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-sm shadow-lg shadow-red-500/20"
             >
@@ -260,20 +261,46 @@ export default function DashboardPage() {
 
         <nav className="space-y-2 flex-1">
           {[
-            { id: "purchases", icon: <ShoppingBag size={18}/>, label: "My Library" },
-          ].map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`sidebar-item w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${
-                activeTab === item.id 
-                ? "bg-black text-white shadow-xl shadow-black/10 scale-[1.02]" 
-                : "text-[#767F88] hover:bg-black/5 hover:text-black"
-              }`}
-            >
-              {item.icon} {item.label}
-            </button>
-          ))}
+            {
+              id: "purchases",
+              icon: <ShoppingBag size={18} />,
+              label: "My Library",
+              path: "/dashboard"
+            },
+            {
+              id: "messages",
+              icon: <MessageSquare size={18} />,
+              label: "Messages",
+              path: "/dashboard/messages",
+              hasNotification: true // Adds that "Billion Dollar" polish
+            },
+          ].map((item) => {
+            // Check if the current route matches the item path
+            const isActive = window.location.pathname === item.path || activeTab === item.id;
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  router.push(item.path); // Handles the redirect
+                }}
+                className={`sidebar-item w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive
+                    ? "bg-black text-white shadow-xl shadow-black/10 scale-[1.02]"
+                    : "text-[#767F88] hover:bg-black/5 hover:text-black"
+                  }`}
+              >
+                <div className="flex items-center gap-3">
+                  {item.icon}
+                  {item.label}
+                </div>
+
+                {item.hasNotification && !isActive && (
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#48E44B] animate-pulse" />
+                )}
+              </button>
+            );
+          })}
         </nav>
 
         <div className="sidebar-item p-4 rounded-2xl bg-[#48E44B]/10 border border-[#48E44B]/20">
@@ -284,7 +311,7 @@ export default function DashboardPage() {
 
       {/* 2. MAIN CONTENT */}
       <main className="flex-1 p-6 md:p-12 lg:p-16 overflow-y-auto">
-        
+
         {/* HEADER */}
         <header className="dashboard-header flex flex-col md:flex-row md:items-center justify-between gap-6 mb-16">
           <div>
@@ -299,9 +326,9 @@ export default function DashboardPage() {
           </div>
           <div className="relative group">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#767F88] group-focus-within:text-black" size={18} />
-            <Input 
-              placeholder="Search library..." 
-              className="h-12 pl-12 w-full md:w-[300px] rounded-2xl border-none bg-white shadow-sm focus-visible:ring-2 focus-visible:ring-[#48E44B]/20" 
+            <Input
+              placeholder="Search library..."
+              className="h-12 pl-12 w-full md:w-[300px] rounded-2xl border-none bg-white shadow-sm focus-visible:ring-2 focus-visible:ring-[#48E44B]/20"
             />
           </div>
         </header>
@@ -312,9 +339,9 @@ export default function DashboardPage() {
             {/* Seller stats */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-4">
               {[
-                { label: "Active Products", val: String(sellerProducts.length), icon: <Box size={16}/> },
-                { label: "Role", val: user?.role ?? "SELLER", icon: <LayoutDashboard size={16}/> },
-                { label: "Drafts", val: "0", icon: <ArrowDownToLine size={16}/> },
+                { label: "Active Products", val: String(sellerProducts.length), icon: <Box size={16} /> },
+                { label: "Role", val: user?.role ?? "SELLER", icon: <LayoutDashboard size={16} /> },
+                { label: "Drafts", val: "0", icon: <ArrowDownToLine size={16} /> },
               ].map((stat, i) => (
                 <div key={i} className="dashboard-header p-6 rounded-3xl bg-white border border-gray-100 shadow-sm flex items-center gap-4">
                   <div className="h-10 w-10 rounded-xl bg-[#FAFAFB] flex items-center justify-center text-black">{stat.icon}</div>
@@ -434,9 +461,9 @@ export default function DashboardPage() {
             {/* STATS STRIP */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
               {[
-                { label: "Total Spent", val: "$100.00", icon: <CreditCard size={16}/> },
-                { label: "Items Owned", val: "12", icon: <Box size={16}/> },
-                { label: "Downloads Left", val: "∞", icon: <ArrowDownToLine size={16}/> },
+                { label: "Total Spent", val: "$100.00", icon: <CreditCard size={16} /> },
+                { label: "Items Owned", val: "12", icon: <Box size={16} /> },
+                { label: "Downloads Left", val: "∞", icon: <ArrowDownToLine size={16} /> },
               ].map((stat, i) => (
                 <div key={i} className="dashboard-header p-6 rounded-3xl bg-white border border-gray-100 shadow-sm flex items-center gap-4">
                   <div className="h-10 w-10 rounded-xl bg-[#FAFAFB] flex items-center justify-center text-black">{stat.icon}</div>
@@ -462,7 +489,7 @@ export default function DashboardPage() {
                     <div className="flex justify-between items-start mb-4">
                       <h3 className="font-bold text-lg text-[#141519] leading-tight group-hover:text-[#48E44B] transition-colors">{item.title}</h3>
                     </div>
-                    
+
                     <div className="flex items-center gap-4 mb-8">
                       <div className="flex items-center gap-1.5 text-xs font-bold text-[#767F88]">
                         <Clock size={14} /> {item.date}

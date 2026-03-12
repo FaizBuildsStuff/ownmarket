@@ -66,15 +66,11 @@ export default function AdminHeader() {
 
   const segments = pathname.split('/').filter(Boolean)
 
-  // Logic to open the global Chat Widget for Sellers
   const openSellerChat = () => {
-    // This dispatches a custom event that your ChatWidget listens to
-    // or you can route them to a dedicated /dashboard/messages page
     toast.info("Opening Seller Inbox", {
       description: "Loading your active buyer threads..."
     })
-    // router.push("/dashboard/messages") // Option A: Dedicated Page
-    window.dispatchEvent(new CustomEvent('toggleChatWidget')); // Option B: Global Popup
+    router.push("/dashboard/messages")
   }
 
   return (
@@ -88,7 +84,7 @@ export default function AdminHeader() {
         {/* LEFT: INTERACTIVE BREADCRUMBS */}
         <div className="flex items-center gap-4">
           <div className="hidden md:flex items-center gap-2 text-[10px] font-black text-[#767F88] uppercase tracking-[0.2em]">
-            <Link href="/dashboard" className="hover:text-black transition-colors">
+            <Link href="/" className="hover:text-black transition-colors">
               OWNMARKET
             </Link>
 
