@@ -43,7 +43,15 @@ model User {
   image         String?
   passwordHash  String?
   role          UserRole  @default(BUYER)
+  status        UserStatus @default(ACTIVE)
+  timeoutUntil  DateTime?
   
+  // Discord Integration
+  discordId       String?   @unique
+  discordUsername String?
+  discordAvatar   String?
+  badges          String[]  @default([])
+
   // Relations
   accounts      Account[]
   sessions      Session[]
@@ -68,6 +76,12 @@ enum UserRole {
   BUYER
 }
 
+enum UserStatus {
+  ACTIVE
+  BANNED
+  TIMEOUT
+}
+
 // --- MARKETPLACE MODELS ---
 
 model Product {
@@ -79,6 +93,7 @@ model Product {
   image       String
   version     String   @default("1.0.0")
   rating      Float    @default(5.0)
+  isVisible   Boolean  @default(true)
   createdAt   DateTime @default(now())
   
   sellerId    String

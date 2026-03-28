@@ -7,7 +7,7 @@ import { gsap } from 'gsap'
 import { 
   ArrowRight, Mail, Lock, User, 
   Github, Chrome, Sparkles, Check, 
-  ShieldCheck, Camera, Loader2
+  ShieldCheck, Camera, Loader2, Disc as DiscordIcon
 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -159,8 +159,12 @@ export default function SignUpPage() {
               </div>
 
               <div className="signup-reveal grid grid-cols-2 gap-3">
-                <Button variant="outline" className="h-11 rounded-xl border-[#E5E5E7] text-xs font-bold gap-2 opacity-60 cursor-not-allowed">
-                  <Chrome size={14} /> Google
+                <Button 
+                  onClick={() => router.push("/api/auth/discord")}
+                  variant="outline" 
+                  className="h-11 rounded-xl border-[#E5E5E7] text-xs font-bold gap-2 hover:bg-[#5865F2] hover:text-white hover:border-[#5865F2] transition-all"
+                >
+                  <DiscordIcon size={14} /> Discord
                 </Button>
                 <Button variant="outline" className="h-11 rounded-xl border-[#E5E5E7] text-xs font-bold gap-2 opacity-60 cursor-not-allowed">
                   <Github size={14} /> GitHub

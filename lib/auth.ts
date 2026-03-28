@@ -83,6 +83,14 @@ export async function requireCurrentUser() {
   return user
 }
 
+export async function requireAdmin() {
+  const user = await requireCurrentUser()
+  if (user.role !== "ADMIN") {
+    throw new Error("UNAUTHORIZED")
+  }
+  return user
+}
+
 export async function signInWithEmail(email: string, password: string) {
   const user = await prisma.user.findUnique({
     where: { email },

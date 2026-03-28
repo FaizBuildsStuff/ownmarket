@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { requireCurrentUser } from "@/lib/auth"
+import { sendEmailConfirmation } from "@/lib/emailjs"
+
+export const dynamic = "force-dynamic"
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -17,6 +20,7 @@ export async function GET(request: Request) {
     }
 
     const products = await prisma.product.findMany({
+      where: { isVisible: true },
       orderBy: { createdAt: "desc" },
       include: {
         seller: {
@@ -65,6 +69,15 @@ export async function POST(request: Request) {
         image: image || "https://images.unsplash.com/photo-1555066931-4365d14bab8c",
         sellerId: user.id,
       },
+    })
+
+    // Trigger EmailJS Notification
+    await sendEmailConfirmation({
+      to_name: user.name || "Seller",
+      to_email: user.email || "",
+      product_title: product.title,
+      price: product.price,
+      image_url: product.image
     })
 
     return NextResponse.json({ product }, { status: 201 })

@@ -20,9 +20,13 @@ export default async function UserPage({ params }: Props) {
       name: true,
       email: true,
       role: true,
+      image: true,
+      badges: true,
       products: {
         orderBy: { createdAt: "desc" },
       },
+      discordUsername: true,
+      discordAvatar: true,
     },
   })
 
@@ -47,8 +51,12 @@ export default async function UserPage({ params }: Props) {
       <section className="bg-white border-b border-gray-100 pt-32 pb-20">
         <div className="mx-auto max-w-[800px] px-6 flex flex-col items-center text-center">
           <div className="relative mb-8">
-            <div className="h-24 w-24 rounded-[32px] bg-black text-white flex items-center justify-center text-3xl font-black shadow-2xl shadow-black/20">
-              {user.name?.[0]?.toUpperCase() ?? "O"}
+            <div className="h-24 w-24 rounded-[32px] bg-black text-white flex items-center justify-center text-3xl font-black shadow-2xl shadow-black/20 overflow-hidden">
+              {user.discordAvatar || user.image ? (
+                <Image src={(user.discordAvatar || user.image)!} alt={user.name!} fill className="object-cover" />
+              ) : (
+                user.name?.[0]?.toUpperCase() ?? "O"
+              )}
             </div>
             <div className="absolute -bottom-2 -right-2 h-8 w-8 bg-[#48E44B] border-4 border-white rounded-full flex items-center justify-center">
               <ShieldCheck size={16} className="text-white" />
@@ -58,21 +66,52 @@ export default async function UserPage({ params }: Props) {
           <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-[#141519] mb-4">
             {user.name ?? "Marketplace Creator"}
           </h1>
+
+          {/* BADGES DISPLAY */}
+          {user.badges && user.badges.length > 0 && (
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
+              {user.badges.map((badge, idx) => (
+                <div 
+                  key={idx} 
+                  className="px-3 py-1 bg-gradient-to-r from-amber-400/10 to-orange-400/10 border border-amber-200/50 rounded-full flex items-center gap-1.5 shadow-sm"
+                >
+                  <div className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-700">{badge}</span>
+                </div>
+              ))}
+            </div>
+          )}
           
           <div className="flex flex-wrap items-center justify-center gap-4 text-sm font-bold text-[#767F88] mb-8">
             <span className="flex items-center gap-1.5"><Star size={14} className="fill-yellow-400 text-yellow-400" /> Top Rated</span>
             <span className="h-1 w-1 rounded-full bg-gray-300" />
             <span className="flex items-center gap-1.5"><Globe size={14} /> Global License</span>
+            {user.discordUsername && (
+              <>
+                <span className="h-1 w-1 rounded-full bg-gray-300" />
+                <div className="flex items-center gap-2 bg-[#5865F2]/10 text-[#5865F2] px-3 py-1 rounded-full">
+                  <Image 
+                    src={user.discordAvatar || "https://cdn.discordapp.com/embed/avatars/0.png"} 
+                    alt="Discord Avatar" 
+                    width={16} 
+                    height={16} 
+                    className="rounded-full"
+                  />
+                  <span>{user.discordUsername}</span>
+                </div>
+              </>
+            )}
             <span className="h-1 w-1 rounded-full bg-gray-300" />
             <Badge className="bg-[#48E44B]/10 text-[#2d8a2f] border-none font-black text-[10px] px-3 py-1 rounded-full uppercase tracking-widest">
               {user.role}
             </Badge>
           </div>
 
-          <p className="max-w-[500px] text-lg text-[#767F88] font-medium leading-relaxed">
-            Professional creator distributing high-end digital assets on OwnMarket. 
-            All products are verified for quality and compatibility.
-          </p>
+          <div className="max-w-[500px] text-lg text-[#767F88] font-medium leading-relaxed">
+            {user.role === "SELLER" 
+              ? "Professional creator distributing high-end digital assets on OwnMarket. All products are verified for quality and compatibility."
+              : "Creative member of the OwnMarket community. Focused on high-quality digital assets and modern tools."}
+          </div>
         </div>
       </section>
 

@@ -1,4 +1,5 @@
-import { PrismaClient } from '@prisma/client' // Use this, NOT /extension
+// Prisma Client Singleton (Synchronized with Discord fields)
+import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { Pool } from 'pg'
 

@@ -15,13 +15,16 @@ import {
   CreditCard,
   MessageSquare,
   Sparkles,
-  Loader2
+  Loader2,
+  CheckCircle2
 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { useCart } from "@/app/context/CartContext"
 import { ChatWidget } from "@/components/ChatWidget"
+import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 import {
   Dialog,
   DialogContent,
@@ -31,19 +34,36 @@ import {
 } from "@/components/ui/dialog"
 
 export default function CartPage() {
-  const { cart, removeFromCart } = useCart()
+  const { cart, removeFromCart, clearCart } = useCart()
   const [isSyncing, setIsSyncing] = useState(false)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const router = useRouter()
 
   const subtotal = cart.reduce((acc, item) => acc + item.price, 0)
   const total = subtotal
 
-  const handleConfirmSync = () => {
+  const handleConfirmSync = async () => {
     setIsSyncing(true)
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: cart }),
+      })
+
+      if (res.ok) {
+        toast.success("Checkout successful! Assets initialized.")
+        clearCart()
+        router.push("/dashboard")
+      } else {
+        const data = await res.json()
+        toast.error(data.message || "Checkout failed")
+      }
+    } catch (error) {
+      toast.error("Checkout failed. Please check your connection.")
+    } finally {
       setIsSyncing(false)
-      setShowPaymentModal(true)
-    }, 1500)
+    }
   }
 
   if (cart.length === 0) {

@@ -17,6 +17,8 @@ import {
 import { ProductPurchaseActions } from "@/components/ProductPurchaseActions"
 import CartDrawer from "@/components/CartDrawer"
 
+import { getCurrentUser } from "@/lib/auth"
+
 type Props = {
   params: Promise<{ id: string }>
 }
@@ -25,13 +27,22 @@ export default async function ProductPage({ params }: Props) {
   // Await params in Next.js 15
   const { id } = await params
 
-  const product = await prisma.product.findUnique({
-    where: { id: id },
-    include: { seller: true },
-  })
+  const [product, user] = await Promise.all([
+    prisma.product.findUnique({
+      where: { id: id },
+      include: { seller: true },
+    }),
+    getCurrentUser()
+  ])
 
-  // If ID doesn't exist in Neon DB, trigger 404
+  // If ID doesn't exist, trigger 404
   if (!product) notFound()
+
+  // Visibility check: hidden products only visible to Admin or the Seller
+  const canSeeHidden = user?.role === "ADMIN" || user?.id === product.sellerId
+  if (!product.isVisible && !canSeeHidden) {
+    notFound()
+  }
 
   return (
     <div className="min-h-screen bg-[#FAFAFB] selection:bg-[#48E44B]/30 pb-32 font-sans antialiased">
