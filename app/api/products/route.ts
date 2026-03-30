@@ -1,22 +1,23 @@
-import { NextResponse } from "next/server"
-import prisma from "@/lib/prisma"
-import { requireCurrentUser } from "@/lib/auth"
-import { sendEmailConfirmation } from "@/lib/emailjs"
+import { NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+import { requireCurrentUser } from "@/lib/auth";
+import { sendEmailConfirmation } from "@/lib/emailjs";
 
-export const dynamic = "force-dynamic"
+export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const mine = searchParams.get("mine") === "1" || searchParams.get("mine") === "true"
+  const { searchParams } = new URL(request.url);
+  const mine =
+    searchParams.get("mine") === "1" || searchParams.get("mine") === "true";
 
   try {
     if (mine) {
-      const user = await requireCurrentUser()
+      const user = await requireCurrentUser();
       const products = await prisma.product.findMany({
         where: { sellerId: user.id },
         orderBy: { createdAt: "desc" },
-      })
-      return NextResponse.json({ products })
+      });
+      return NextResponse.json({ products });
     }
 
     const products = await prisma.product.findMany({
@@ -27,37 +28,40 @@ export async function GET(request: Request) {
           select: { id: true, name: true, email: true },
         },
       },
-    })
+    });
 
-    return NextResponse.json({ products })
+    return NextResponse.json({ products });
   } catch (error) {
-    console.error("[products.GET]", error)
-    return NextResponse.json({ message: "Failed to load products" }, { status: 500 })
+    console.error("[products.GET]", error);
+    return NextResponse.json(
+      { message: "Failed to load products" },
+      { status: 500 },
+    );
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const user = await requireCurrentUser()
+    const user = await requireCurrentUser();
 
-    const body = await request.json().catch(() => ({}))
+    const body = await request.json().catch(() => ({}));
     const { title, description, price, category, image } = body as {
-      title?: string
-      description?: string
-      price?: number
-      category?: string
-      image?: string
-    }
+      title?: string;
+      description?: string;
+      price?: number;
+      category?: string;
+      image?: string;
+    };
 
     if (!title || typeof price !== "number" || !category) {
       return NextResponse.json(
         { message: "Title, price and category are required" },
         { status: 400 },
-      )
+      );
     }
 
     if (user.role !== "SELLER" && user.role !== "ADMIN") {
-      return NextResponse.json({ message: "Not allowed" }, { status: 403 })
+      return NextResponse.json({ message: "Not allowed" }, { status: 403 });
     }
 
     const product = await prisma.product.create({
@@ -66,10 +70,11 @@ export async function POST(request: Request) {
         description: description ?? "",
         price,
         category,
-        image: image || "https://images.unsplash.com/photo-1555066931-4365d14bab8c",
+        image:
+          image || "https://images.unsplash.com/photo-1555066931-4365d14bab8c",
         sellerId: user.id,
       },
-    })
+    });
 
     // Trigger EmailJS Notification
     await sendEmailConfirmation({
@@ -77,16 +82,15 @@ export async function POST(request: Request) {
       to_email: user.email || "",
       product_title: product.title,
       price: product.price,
-      image_url: product.image
-    })
+      image_url: product.image,
+    });
 
-    return NextResponse.json({ product }, { status: 201 })
+    return NextResponse.json({ product }, { status: 201 });
   } catch (error) {
-    console.error("[products.POST]", error)
+    console.error("[products.POST]", error);
     return NextResponse.json(
       { message: "Could not create product" },
       { status: 500 },
-    )
+    );
   }
 }
-

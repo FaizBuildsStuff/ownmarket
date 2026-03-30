@@ -28,7 +28,10 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ product });
   } catch (error) {
     console.error("[product.GET]", error);
-    return NextResponse.json({ message: "Failed to load product" }, { status: 500 });
+    return NextResponse.json(
+      { message: "Failed to load product" },
+      { status: 500 },
+    );
   }
 }
 
@@ -66,7 +69,10 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ product });
   } catch (error) {
     console.error("[product.PATCH]", error);
-    return NextResponse.json({ message: "Could not update product" }, { status: 500 });
+    return NextResponse.json(
+      { message: "Could not update product" },
+      { status: 500 },
+    );
   }
 }
 
@@ -94,6 +100,9 @@ export async function DELETE(_req: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[product.DELETE]", error);
-    return NextResponse.json({ message: "Could not delete product" }, { status: 500 });
+    return NextResponse.json(
+      { message: "Could not delete product" },
+      { status: 500 },
+    );
   }
 }

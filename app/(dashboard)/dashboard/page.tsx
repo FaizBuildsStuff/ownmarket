@@ -53,6 +53,7 @@ import { Switch } from "@/components/ui/switch"
 import AdminOverview from '@/components/dashboard/AdminOverview'
 import AdminUsers from '@/components/dashboard/AdminUsers'
 import AdminProducts from '@/components/dashboard/AdminProducts'
+import HistoryView from '@/components/dashboard/HistoryView'
 
 type UserRole = "ADMIN" | "SELLER" | "BUYER"
 
@@ -141,24 +142,32 @@ export default function DashboardPage() {
   const isSeller = user?.role === "SELLER"
 
   useEffect(() => {
+    let isMounted = true
     const loadUserAndData = async () => {
       try {
         const res = await fetch("/api/auth/me", { cache: "no-store" })
         if (!res.ok) {
-          router.replace("/signin")
+          if (isMounted) router.replace("/signin")
           return
         }
         const data = await res.json()
         if (!data.user) {
-          router.replace("/signin")
+          if (isMounted) router.replace("/signin")
           return
         }
-        setUser(data.user)
+        if (isMounted) {
+          setUser(data.user)
+
+          // Pre-set tab if admin (optional)
+          if (data.user.role === "ADMIN") {
+            // setActiveTab("purchases") // default
+          }
+        }
 
         // Fetch real buyer data if applicable
         if (data.user.role === "BUYER" || data.user.role === "ADMIN") {
           const buyerRes = await fetch("/api/dashboard/buyer", { cache: "no-store" })
-          if (buyerRes.ok) {
+          if (buyerRes.ok && isMounted) {
             const buyerData = await buyerRes.json()
             setStats(buyerData.stats)
             setPurchaseHistory(buyerData.library)
@@ -167,18 +176,20 @@ export default function DashboardPage() {
 
         if (data.user.role === "SELLER" || data.user.role === "ADMIN") {
           const prodRes = await fetch("/api/products?mine=1", { cache: "no-store" })
-          if (prodRes.ok) {
+          if (prodRes.ok && isMounted) {
             const prodData = await prodRes.json()
             setSellerProducts(prodData.products ?? [])
           }
         }
-      } catch {
-        router.replace("/signin")
+      } catch (error) {
+        console.error("Dashboard load error:", error)
+        if (isMounted) router.replace("/signin")
       } finally {
-        setLoadingUser(false)
+        if (isMounted) setLoadingUser(false)
       }
     }
     loadUserAndData()
+    return () => { isMounted = false }
   }, [router])
 
   const handleCreateProduct = async () => {
@@ -343,32 +354,40 @@ export default function DashboardPage() {
         <nav className="space-y-2 flex-1">
           {[
             {
-               id: "purchases",
-               icon: user?.role === 'ADMIN' ? <Shield size={18} /> : <ShoppingBag size={18} />,
-               label: user?.role === 'ADMIN' ? "Admin Command" : "My Library",
-               path: "/dashboard"
-             },
-             {
-               id: "messages",
-               icon: <MessageSquare size={18} />,
-               label: "Messages",
-               path: "/dashboard/messages",
-               hasNotification: true 
-             },
-          ].map((item) => {
-            // Check if the current route matches the item path
-            const isActive = window.location.pathname === item.path || activeTab === item.id;
+              id: "purchases",
+              icon: user?.role === 'ADMIN' ? <Shield size={18} /> : <ShoppingBag size={18} />,
+              label: user?.role === 'ADMIN' ? "Admin Command" : "My Library",
+              path: "/dashboard"
+            },
+            {
+              id: "history",
+              icon: <History size={18} />,
+              label: "Order history",
+              path: "/dashboard",
+              hidden: user?.role === "BUYER"
+            },
+            {
+              id: "messages",
+              icon: <MessageSquare size={18} />,
+              label: "Messages",
+              path: "/dashboard/messages",
+              hasNotification: true
+            },
+          ].filter(i => !i.hidden).map((item) => {
+            const isActive = activeTab === item.id;
 
             return (
               <button
                 key={item.id}
                 onClick={() => {
                   setActiveTab(item.id);
-                  router.push(item.path); // Handles the redirect
+                  if (item.path !== "/dashboard") {
+                    router.push(item.path);
+                  }
                 }}
                 className={`sidebar-item w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive
-                    ? "bg-black text-white shadow-xl shadow-black/10 scale-[1.02]"
-                    : "text-[#767F88] hover:bg-black/5 hover:text-black"
+                  ? "bg-black text-white shadow-xl shadow-black/10 scale-[1.02]"
+                  : "text-[#767F88] hover:bg-black/5 hover:text-black"
                   }`}
               >
                 <div className="flex items-center gap-3">
@@ -396,15 +415,17 @@ export default function DashboardPage() {
         {/* HEADER */}
         <header className="dashboard-header flex flex-col md:flex-row md:items-center justify-between gap-6 mb-16">
           <div>
-            <h1 className="text-4xl font-bold tracking-tighter text-[#141519]">
-              {user?.role === "ADMIN" ? "Admin Console" : user?.role === "SELLER" ? "Seller Studio" : "Library"}
+            <h1 className="text-3xl font-black tracking-tight">
+              {activeTab === "history" ? "Order history" : user?.role === "ADMIN" ? "Admin Console" : user?.role === "SELLER" ? "Seller Studio" : "Library"}
             </h1>
             <p className="text-[#767F88] font-medium mt-1">
-              {user?.role === "ADMIN"
-                ? "Manage platform users, assets, and global protocols."
-                : user?.role === "SELLER"
-                ? "Create and manage your marketplace products."
-                : `Manage your ${purchases.length} digital assets.`}
+              {activeTab === "history"
+                ? "Full analytical log of transactions and assets."
+                : user?.role === "ADMIN"
+                  ? "Manage platform users, assets, and global protocols."
+                  : user?.role === "SELLER"
+                    ? "Create and manage your marketplace products."
+                    : `Manage your ${purchases.length} digital assets.`}
             </p>
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -424,7 +445,9 @@ export default function DashboardPage() {
         </header>
 
         {/* CONTENT */}
-        {isSeller ? (
+        {activeTab === "history" ? (
+          <HistoryView role={user?.role || "BUYER"} />
+        ) : isSeller ? (
           <section className="space-y-10">
             {/* Seller stats */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-4">
@@ -475,8 +498,8 @@ export default function DashboardPage() {
                 <div>
                   <label className="block text-xs font-bold text-[#767F88] mb-1">Product Media</label>
                   <div className="relative">
-                    <input 
-                      type="file" 
+                    <input
+                      type="file"
                       accept="image/*"
                       onChange={(e) => {
                         const file = e.target.files?.[0]
@@ -489,10 +512,10 @@ export default function DashboardPage() {
                           reader.readAsDataURL(file)
                         }
                       }}
-                      className="hidden" 
+                      className="hidden"
                       id="product-image-upload"
                     />
-                    <label 
+                    <label
                       htmlFor="product-image-upload"
                       className="flex items-center justify-center gap-2 h-10 w-full rounded-xl border border-dashed border-gray-200 bg-[#FAFAFB] text-xs font-bold text-[#767F88] cursor-pointer hover:bg-gray-50 transition-all"
                     >
@@ -509,14 +532,14 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3 h-10 px-4 rounded-xl border border-gray-100 bg-[#FAFAFB]">
-                   <Switch 
-                     checked={newProduct.isVisible}
-                     onCheckedChange={(checked) => setNewProduct({ ...newProduct, isVisible: checked })}
-                     className="data-[state=checked]:bg-[#48E44B]"
-                   />
-                   <span className="text-[10px] font-bold uppercase tracking-widest text-[#767F88]">
-                     {newProduct.isVisible ? "Visible on Marketplace" : "Hidden (Draft Mode)"}
-                   </span>
+                  <Switch
+                    checked={newProduct.isVisible}
+                    onCheckedChange={(checked) => setNewProduct({ ...newProduct, isVisible: checked })}
+                    className="data-[state=checked]:bg-[#48E44B]"
+                  />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#767F88]">
+                    {newProduct.isVisible ? "Visible on Marketplace" : "Hidden (Draft Mode)"}
+                  </span>
                 </div>
               </div>
               <div className="mt-4">
@@ -567,23 +590,23 @@ export default function DashboardPage() {
                           >
                             <ExternalLink size={14} className="mr-1" /> View
                           </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-9 rounded-xl text-xs"
-                              onClick={() => handleEditProduct(item)}
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-9 rounded-xl text-xs text-red-500 border-red-200 hover:bg-red-50"
-                              // --- UPDATED TO TRIGGER SHADCN MODAL ---
-                              onClick={() => setProductToDelete(item.id)}
-                            >
-                              Delete
-                            </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-9 rounded-xl text-xs"
+                            onClick={() => handleEditProduct(item)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-9 rounded-xl text-xs text-red-500 border-red-200 hover:bg-red-50"
+                            // --- UPDATED TO TRIGGER SHADCN MODAL ---
+                            onClick={() => setProductToDelete(item.id)}
+                          >
+                            Delete
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
@@ -614,13 +637,13 @@ export default function DashboardPage() {
 
             {/* TABS FOR BUYER */}
             <div className="flex items-center gap-8 mb-8 border-b border-gray-100">
-              <button 
+              <button
                 onClick={() => setActiveTab("purchases")}
                 className={`pb-4 text-sm font-bold transition-all ${activeTab === "purchases" ? "text-black border-b-2 border-black" : "text-[#767F88] hover:text-black"}`}
               >
                 My Library
               </button>
-              <button 
+              <button
                 onClick={() => setActiveTab("cart")}
                 className={`pb-4 text-sm font-bold transition-all ${activeTab === "cart" ? "text-black border-b-2 border-black" : "text-[#767F88] hover:text-black"}`}
               >
@@ -631,30 +654,30 @@ export default function DashboardPage() {
             {activeTab === "purchases" ? (
               user?.role === "ADMIN" ? (
                 <div className="space-y-12">
-                   <div className="flex items-center justify-between mb-8">
-                      <div>
-                         <h2 className="text-2xl font-black tracking-tight">Platform Command</h2>
-                         <p className="text-sm text-[#767F88] font-medium">Manage node protocols and marketplace integrity.</p>
-                      </div>
-                   </div>
+                  <div className="flex items-center justify-between mb-8">
+                    <div>
+                      <h2 className="text-2xl font-black tracking-tight">Platform Command</h2>
+                      <p className="text-sm text-[#767F88] font-medium">Manage node protocols and marketplace integrity.</p>
+                    </div>
+                  </div>
 
-                   <Tabs defaultValue="overview" className="w-full">
-                      <TabsList className="bg-transparent border-b border-gray-100 w-full justify-start rounded-none h-auto p-0 mb-8 overflow-x-auto">
-                         <TabsTrigger value="overview" className="data-[state=active]:bg-transparent data-[state=active]:text-black data-[state=active]:border-b-2 data-[state=active]:border-black rounded-none px-6 pb-4 pt-0 font-bold text-sm">Overview</TabsTrigger>
-                         <TabsTrigger value="users" className="data-[state=active]:bg-transparent data-[state=active]:text-black data-[state=active]:border-b-2 data-[state=active]:border-black rounded-none px-6 pb-4 pt-0 font-bold text-sm">Users</TabsTrigger>
-                         <TabsTrigger value="products" className="data-[state=active]:bg-transparent data-[state=active]:text-black data-[state=active]:border-b-2 data-[state=active]:border-black rounded-none px-6 pb-4 pt-0 font-bold text-sm">All Assets</TabsTrigger>
-                      </TabsList>
-                      
-                      <TabsContent value="overview">
-                         <AdminOverview />
-                      </TabsContent>
-                      <TabsContent value="users">
-                         <AdminUsers />
-                      </TabsContent>
-                      <TabsContent value="products">
-                         <AdminProducts />
-                      </TabsContent>
-                   </Tabs>
+                  <Tabs defaultValue="overview" className="w-full">
+                    <TabsList className="bg-transparent border-b border-gray-100 w-full justify-start rounded-none h-auto p-0 mb-8 overflow-x-auto">
+                      <TabsTrigger value="overview" className="data-[state=active]:bg-transparent data-[state=active]:text-black data-[state=active]:border-b-2 data-[state=active]:border-black rounded-none px-6 pb-4 pt-0 font-bold text-sm">Overview</TabsTrigger>
+                      <TabsTrigger value="users" className="data-[state=active]:bg-transparent data-[state=active]:text-black data-[state=active]:border-b-2 data-[state=active]:border-black rounded-none px-6 pb-4 pt-0 font-bold text-sm">Users</TabsTrigger>
+                      <TabsTrigger value="products" className="data-[state=active]:bg-transparent data-[state=active]:text-black data-[state=active]:border-b-2 data-[state=active]:border-black rounded-none px-6 pb-4 pt-0 font-bold text-sm">All Assets</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="overview">
+                      <AdminOverview />
+                    </TabsContent>
+                    <TabsContent value="users">
+                      <AdminUsers />
+                    </TabsContent>
+                    <TabsContent value="products">
+                      <AdminProducts />
+                    </TabsContent>
+                  </Tabs>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
@@ -718,8 +741,8 @@ export default function DashboardPage() {
                         <h3 className="font-bold text-lg text-[#141519] leading-tight group-hover:text-[#48E44B] transition-colors mb-4">{item.title}</h3>
                         <div className="flex items-center justify-between pt-6 border-t border-gray-50">
                           <span className="text-xl font-black text-[#141519]">${item.price.toFixed(2)}</span>
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             className="h-10 rounded-xl"
                             onClick={() => router.push(`/product/${item.id}`)}
                           >
@@ -741,16 +764,16 @@ export default function DashboardPage() {
         <aside className="hidden xl:flex w-80 flex-col border-l border-gray-100 bg-white p-8 sticky top-0 h-screen overflow-y-auto">
           <div className="mb-10">
             <h2 className="text-sm font-black text-[#141519] uppercase tracking-[0.2em] mb-6">Integrations</h2>
-            
+
             <Card className="p-6 rounded-3xl border border-gray-100 bg-[#FAFAFB] shadow-sm overflow-hidden relative group">
               <div className="relative z-10">
                 <div className="h-10 w-10 bg-[#5865F2] rounded-xl flex items-center justify-center text-white mb-4 shadow-lg shadow-[#5865F2]/20 shrink-0">
                   {user.discordAvatar ? (
-                    <Image 
-                      src={user.discordAvatar} 
-                      alt="Discord" 
-                      width={40} 
-                      height={40} 
+                    <Image
+                      src={user.discordAvatar}
+                      alt="Discord"
+                      width={40}
+                      height={40}
                       className="rounded-xl object-cover"
                     />
                   ) : (
@@ -761,17 +784,16 @@ export default function DashboardPage() {
                   {user.discordUsername ? `Connected: ${user.discordUsername}` : "Discord Community"}
                 </h3>
                 <p className="text-[11px] text-[#767F88] font-medium leading-relaxed mb-6">
-                  {user.discordUsername 
+                  {user.discordUsername
                     ? "Your profile is synced. You have access to automated roles and member-only channels."
                     : "Sync your creator profile with Discord to unlock automated roles and member-only channels."}
                 </p>
-                <Button 
+                <Button
                   onClick={() => router.push("/api/auth/discord")}
-                  className={`w-full h-11 rounded-xl font-bold text-xs ${
-                    user.discordId 
-                      ? "bg-white border border-gray-200 text-[#141519] hover:bg-gray-50" 
+                  className={`w-full h-11 rounded-xl font-bold text-xs ${user.discordId
+                      ? "bg-white border border-gray-200 text-[#141519] hover:bg-gray-50"
                       : "bg-[#5865F2] hover:bg-[#4752c4] text-white"
-                  }`}
+                    }`}
                 >
                   {user.discordId ? "Reconnect Discord" : "Connect Profile"}
                 </Button>
@@ -832,8 +854,8 @@ export default function DashboardPage() {
             <div>
               <label className="block text-xs font-bold text-[#767F88] mb-1">Product Media</label>
               <div className="relative">
-                <input 
-                  type="file" 
+                <input
+                  type="file"
                   accept="image/*"
                   onChange={(e) => {
                     const file = e.target.files?.[0]
@@ -846,10 +868,10 @@ export default function DashboardPage() {
                       reader.readAsDataURL(file)
                     }
                   }}
-                  className="hidden" 
+                  className="hidden"
                   id="edit-product-image-upload"
                 />
-                <label 
+                <label
                   htmlFor="edit-product-image-upload"
                   className="flex items-center justify-center gap-2 h-10 w-full rounded-xl border border-dashed border-gray-200 bg-[#FAFAFB] text-xs font-bold text-[#767F88] cursor-pointer hover:bg-gray-50 transition-all"
                 >
@@ -870,7 +892,7 @@ export default function DashboardPage() {
 
           <AlertDialogFooter className="gap-3">
             <AlertDialogCancel className="h-12 rounded-xl text-xs font-bold">Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault()
                 handleUpdateProduct()

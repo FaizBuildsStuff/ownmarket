@@ -108,11 +108,36 @@ model Purchase {
   productId   String
   pricePaid   Float
   licenseKey  String   @unique @default(uuid())
+  status      PurchaseStatus @default(COMPLETED)
   createdAt   DateTime @default(now())
 
   user        User     @relation(fields: [userId], references: [id])
   product     Product  @relation(fields: [productId], references: [id])
+  refund      Refund?
 }
+
+model Refund {
+  id          String   @id @default(cuid())
+  purchaseId  String   @unique
+  reason      String   @db.Text
+  status      RefundStatus @default(PENDING)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  purchase    Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+}
+
+enum PurchaseStatus {
+  COMPLETED
+  REFUNDED
+}
+
+enum RefundStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 
 model ChatThread {
   id        String      @id @default(cuid())
